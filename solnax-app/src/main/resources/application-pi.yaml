@@ -4,6 +4,3 @@ spring:
     url: jdbc:postgresql://db:5432/solnax
     username: solnax
     password: secretpw
-
-server:
-  address: localhost
