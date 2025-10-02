@@ -8,7 +8,7 @@ public class TrainController {
 
     @GetMapping("/hello")
     public String hello(){
-        return "V0.1";
+        return "V0.2";
     }
 
     @GetMapping("/where")
