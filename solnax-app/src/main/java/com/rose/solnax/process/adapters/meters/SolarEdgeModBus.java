@@ -17,6 +17,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Robust SolarEdge Modbus TCP adapter using Modbus4J.
+ * - Accepts SolarEdge-style register numbers (40001..). Converts to zero-based offsets.
+ * - Supports multi-word reads, signed/unsigned, and scale registers (10^scale).
+ * - Reconnects automatically when needed.
+ */
 @Service
 @Slf4j
 public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
@@ -24,7 +30,6 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     private final ModbusFactory modbusFactory = new ModbusFactory();
     private com.serotonin.modbus4j.ModbusMaster master;
 
-    // Connection config
     @Value("${solaredge.modbus.host}")
     private String host;
     @Value("${solaredge.modbus.port:1502}")
@@ -33,16 +38,27 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     private int slaveId;
     @Value("${solaredge.modbus.connectTimeoutMs:3000}")
     private int connectTimeoutMs;
+    @Value("${solaredge.modbus.retries:1}")
+    private int retries;
 
-    // Registers (configurable)
-    @Value("${solaredge.modbus.registers.gridPowerOffset}")
-    private int gridPowerOffset;
-    @Value("${solaredge.modbus.registers.sitePowerOffset}")
+    // Your configurable registers (SolarEdge 400xx numbers). Example defaults can be overridden in YAML.
+    @Value("${solaredge.modbus.registers.gridPowerOffset:40077}")
+    private int gridPowerOffset;      // SolarEdge register number (e.g. 40077 for AC power)
+    @Value("${solaredge.modbus.registers.gridPowerWords:1}")
+    private int gridPowerWords;       // number of 16-bit registers (words)
+    @Value("${solaredge.modbus.registers.gridPowerSigned:true}")
+    private boolean gridPowerSigned;  // whether the raw value is signed
+
+    @Value("${solaredge.modbus.registers.sitePowerOffset:40085}")
     private int sitePowerOffset;
-    @Value("${solaredge.modbus.registers.gridPowerWords}")
-    private int gridPowerWords;   // number of 16-bit registers (words)
-    @Value("${solaredge.modbus.registers.sitePowerWords}")
+    @Value("${solaredge.modbus.registers.sitePowerWords:1}")
     private int sitePowerWords;
+    @Value("${solaredge.modbus.registers.sitePowerSigned:true}")
+    private boolean sitePowerSigned;
+
+    // Common scale registers (use SolarEdge scale register numbers). 0 means "no scale".
+    @Value("${solaredge.modbus.scales.powerScale:40106}")
+    private int powerScaleRegister; // applies to AC power, etc. (SolarEdge convention)
 
     private final ReentrantLock connectionLock = new ReentrantLock();
 
@@ -63,17 +79,15 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
 
             master = modbusFactory.createTcpMaster(params, true);
             master.setTimeout(connectTimeoutMs);
-            master.setRetries(1);
+            master.setRetries(retries);
 
             try {
                 master.init();
                 log.info("Connected to SolarEdge Modbus TCP {}:{}", host, port);
             } catch (ModbusInitException e) {
                 log.error("Failed to init Modbus master: {}", e.getMessage());
-                // leave master uninitialized; reconnect attempts will be made on read
-                if (master != null) {
-                    try { master.destroy(); } catch (Exception ignored) {}
-                }
+                // best-effort cleanup
+                try { master.destroy(); } catch (Exception ignored) {}
                 master = null;
             }
         } finally {
@@ -90,58 +104,131 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
         }
     }
 
+    private int toZeroBased(int solarEdgeRegister) {
+        if (solarEdgeRegister >= 40001 && solarEdgeRegister < 50000)
+            return solarEdgeRegister - 40001;
+        if (solarEdgeRegister >= 30001 && solarEdgeRegister < 40000)
+            return solarEdgeRegister - 30001;
+        return solarEdgeRegister;
+    }
+
     /**
-     * Read n 16-bit registers starting from offset (SolarEdge documentation addresses).
-     * Combines into a byte[] and return raw bytes in Big-Endian word order (Modbus network order).
+     * Read holding registers starting from a SolarEdge-style register number (e.g. 40077).
+     * Returns raw short[] (each element is signed Java short representing the 16-bit word).
      */
-    private byte[] readRegistersRaw(int offset, int wordCount) throws ModbusTransportException {
+    private short[] readHoldingRegistersRaw(int solarEdgeRegister, int wordCount) throws ModbusTransportException {
         ensureConnected();
-        // Modbus4j expects zero-based offset relative to register addressing depending on device mapping.
+        int offset = toZeroBased(solarEdgeRegister);
         ReadHoldingRegistersRequest request = new ReadHoldingRegistersRequest(slaveId, offset, wordCount);
         ReadHoldingRegistersResponse response = (ReadHoldingRegistersResponse) master.send(request);
-        if (response == null || response.isException()) {
-            throw new ModbusTransportException("Error reading registers: " + (response == null ? "null" : response.getExceptionMessage()));
+        if (response == null) {
+            throw new ModbusTransportException("Null response reading registers at " + solarEdgeRegister);
         }
-        short[] data = response.getShortData(); // array of signed 16-bit values
-        ByteBuffer bb = ByteBuffer.allocate(data.length * 2);
-        // Modbus returns big-endian per register; we'll put each short as big-endian
-        bb.order(ByteOrder.BIG_ENDIAN);
-        for (short s : data) bb.putShort(s);
-        return bb.array();
+        if (response.isException()) {
+            throw new ModbusTransportException("Exception reading registers at " + solarEdgeRegister + ": " + response.getExceptionMessage());
+        }
+        return response.getShortData();
     }
 
     /**
-     * Convert raw register bytes to signed 32-bit int (big-endian) or signed 64-bit
-     * If device uses different endianess or swapped words, adapt here.
+     * Read a scale register (signed 16-bit exponent). Returns null if scaleRegister==0.
      */
-    private long parseSignedInt(byte[] raw, int bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(raw, 0, bytes);
-        bb.order(ByteOrder.BIG_ENDIAN);
-        if (bytes == 4) return bb.getInt();
-        if (bytes == 8) return bb.getLong();
-        throw new IllegalArgumentException("Unsupported byte length: " + bytes);
+    private Integer readScale(int scaleRegister) {
+        if (scaleRegister <= 0) return null;
+        try {
+            short[] s = readHoldingRegistersRaw(scaleRegister, 1);
+            // treat as signed 16-bit
+            return (int) s[0];
+        } catch (Exception e) {
+            log.warn("Failed to read scale register {}: {}", scaleRegister, e.getMessage());
+            return null;
+        }
     }
 
     /**
-     * Public: grid power in Watts (positive export or positive import depending on device's sign convention).
-     * The address and number of words are configurable in application.yml.
+     * Combine short[] into unsigned long / signed long depending on words and signed flag.
+     * Assumes network (big-endian) word order from Modbus: regs[0] high word.
      */
-    public long readGridPowerWatts() {
-        try {
-            byte[] raw = readRegistersRaw(gridPowerOffset, gridPowerWords);
-            return parseSignedInt(raw, gridPowerWords * 2);
-        } catch (Exception e) {
-            throw new UnableToReadException("Unable to read grid power : " + e);
+    private long combineWords(short[] regs, boolean signed) {
+        // Build big-endian byte buffer
+        ByteBuffer bb = ByteBuffer.allocate(regs.length * 2);
+        bb.order(ByteOrder.BIG_ENDIAN);
+        for (short w : regs) bb.putShort(w);
+        bb.flip();
+
+        if (regs.length == 1) {
+            int unsigned = bb.getShort() & 0xFFFF;
+            if (signed) return (short) unsigned;
+            return unsigned;
+        } else if (regs.length == 2) {
+            long unsigned = ((long) bb.getInt()) & 0xFFFFFFFFL;
+            if (signed) return bb.getInt();
+            return unsigned;
+        } else if (regs.length == 4) {
+            // 64-bit
+            long val = bb.getLong();
+            return signed ? val : val; // Java long is signed, but treat as bit-pattern for unsigned if needed
+        } else {
+            // generic combining for N words: accumulate as unsigned into long (may overflow)
+            long acc = 0;
+            for (short w : regs) {
+                acc = (acc << 16) | (w & 0xFFFFL);
+            }
+            if (signed) {
+                // if top bit (bit length) is set, interpret as negative two's complement
+                int bits = regs.length * 16;
+                long signMask = 1L << (bits - 1);
+                if ((acc & signMask) != 0) {
+                    long mask = (1L << bits) - 1;
+                    long twos = acc & mask;
+                    long signedVal = twos - (1L << bits);
+                    return signedVal;
+                }
+            }
+            return acc;
         }
     }
 
-    public long readSitePowerWatts() {
+    /**
+     * Read a value from solarEdgeRegister with wordCount, apply optional scaleRegister, and return double.
+     */
+    public double readScaledDouble(int solarEdgeRegister, int wordCount, boolean signed, int scaleRegister) {
         try {
-            byte[] raw = readRegistersRaw(sitePowerOffset, sitePowerWords);
-            return parseSignedInt(raw, sitePowerWords * 2);
+            short[] raw = readHoldingRegistersRaw(solarEdgeRegister, wordCount);
+            long combined = combineWords(raw, signed);
+            Integer scaleExp = readScale(scaleRegister);
+            double scale = 1.0;
+            if (scaleExp != null) scale = Math.pow(10.0, scaleExp);
+            return combined * scale;
+        } catch (ModbusTransportException e) {
+            // attempt reconnect once and retry
+            log.warn("Read failed at {} (attempting reconnect): {}", solarEdgeRegister, e.getMessage());
+            try {
+                // reconnect and retry once
+                connect();
+                short[] raw = readHoldingRegistersRaw(solarEdgeRegister, wordCount);
+                long combined = combineWords(raw, signed);
+                Integer scaleExp = readScale(scaleRegister);
+                double scale = 1.0;
+                if (scaleExp != null) scale = Math.pow(10.0, scaleExp);
+                return combined * scale;
+            } catch (Exception ex) {
+                throw new UnableToReadException("Unable to read register " + solarEdgeRegister + " after reconnect: " + ex.getMessage());
+            }
         } catch (Exception e) {
-            throw new UnableToReadException("Unable to read solar power : " + e);
+            throw new UnableToReadException("Unable to read register " + solarEdgeRegister + ": " + e.getMessage());
         }
+    }
+
+    /**
+     * Grid power (Watts) - uses config values and power scale by default.
+     */
+    public double readGridPowerWatts() {
+        return readScaledDouble(gridPowerOffset, gridPowerWords, gridPowerSigned, powerScaleRegister);
+    }
+
+    public double readSitePowerWatts() {
+        return readScaledDouble(sitePowerOffset, sitePowerWords, sitePowerSigned, powerScaleRegister);
     }
 
     @Override
@@ -155,11 +242,11 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
 
     @Override
     public Double gridMeter() {
-        return readGridPowerWatts() + 0.0;
+        return readGridPowerWatts();
     }
 
     @Override
     public Double solarMeter() {
-        return readSitePowerWatts() + 0.0;
+        return readSitePowerWatts();
     }
 }
