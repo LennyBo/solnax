@@ -1,4 +1,4 @@
-package com.rose.solnax.process.adapters;
+package com.rose.solnax.process.adapters.meters;
 
 import com.rose.solnax.process.exception.UnableToReadException;
 import com.serotonin.modbus4j.ModbusFactory;
@@ -131,7 +131,7 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
             byte[] raw = readRegistersRaw(gridPowerOffset, gridPowerWords);
             return parseSignedInt(raw, gridPowerWords * 2);
         } catch (Exception e) {
-            throw new UnableToReadException("Unable to read grid power : " + e.toString());
+            throw new UnableToReadException("Unable to read grid power : " + e);
         }
     }
 
@@ -140,7 +140,7 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
             byte[] raw = readRegistersRaw(sitePowerOffset, sitePowerWords);
             return parseSignedInt(raw, sitePowerWords * 2);
         } catch (Exception e) {
-            throw new UnableToReadException("Unable to read solar power : " + e.toString());
+            throw new UnableToReadException("Unable to read solar power : " + e);
         }
     }
 
@@ -154,12 +154,12 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     }
 
     @Override
-    public Long gridMeter() {
-        return readGridPowerWatts();
+    public Double gridMeter() {
+        return readGridPowerWatts() + 0.0;
     }
 
     @Override
-    public Long solarMeter() {
-        return readSitePowerWatts();
+    public Double solarMeter() {
+        return readSitePowerWatts() + 0.0;
     }
 }

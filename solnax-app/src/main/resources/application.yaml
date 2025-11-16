@@ -47,3 +47,7 @@ solaredge:
       # If you still want a 'house' entry, compute it from the above values in your code
       gridPowerWords: 4
       sitePowerWords: 4
+tesla-ble:
+  host: http://solnax.local:8080
+  white: VINWHITE
+  black: VINBLACK

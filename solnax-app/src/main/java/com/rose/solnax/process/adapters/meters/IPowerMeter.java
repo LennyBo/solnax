@@ -1,11 +1,11 @@
-package com.rose.solnax.process.adapters;
+package com.rose.solnax.process.adapters.meters;
 
 
 //Everything in watts
 public interface IPowerMeter {
 
     //Positive means power is leaving house (exporting), negative means power is coming into the house (importing)
-    public Long gridMeter();
+    Double gridMeter();
 
-    public Long solarMeter();
+    Double solarMeter();
 }
