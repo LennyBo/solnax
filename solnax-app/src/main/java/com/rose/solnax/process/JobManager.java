@@ -44,8 +44,9 @@ public class JobManager {
     @Transactional(readOnly = true)
     void optimizePower(){
         PowerLog lastLog = powerLogManager.getLastPowerLog();
-        if(lastlog == null){
-            log.info("No recent log found. Aborting optimization!");
+        if(lastLog == null){
+            log.error("No recent log found. Aborting optimization!");
+            return;
         }
         log.info("Checking for optimizations");
         if(powerExcess(lastLog)){
