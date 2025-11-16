@@ -32,3 +32,18 @@ logging:
     com.rose.solnax: DEBUG
     org.hibernate.SQL: INFO
     org.flywaydb.core: INFO
+
+
+solaredge:
+  modbus:
+    host: 192.168.1.221
+    port: 1503
+    slaveId: 1
+    connectTimeoutMs: 3000
+    registers:
+      # EMS Modbus map (protocol addresses / zero-based offsets)
+      gridPowerOffset: 300      # GridPower (Int64) — read 4 registers
+      sitePowerOffset: 204      # AcPvGeneration (UInt64) — read 4 registers
+      # If you still want a 'house' entry, compute it from the above values in your code
+      gridPowerWords: 4
+      sitePowerWords: 4
