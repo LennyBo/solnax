@@ -2,6 +2,7 @@ package com.rose.solnax.process.adapters.meters;
 
 import com.rose.solnax.process.exception.UnableToReadException;
 import com.serotonin.modbus4j.ModbusFactory;
+import com.serotonin.modbus4j.ModbusMaster;
 import com.serotonin.modbus4j.exception.ModbusInitException;
 import com.serotonin.modbus4j.exception.ModbusTransportException;
 import com.serotonin.modbus4j.ip.IpParameters;
@@ -13,8 +14,6 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
@@ -22,9 +21,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
 
     private final ModbusFactory modbusFactory = new ModbusFactory();
-    private com.serotonin.modbus4j.ModbusMaster master;
+    private ModbusMaster master;
 
-    // Connection config
     @Value("${solaredge.modbus.host}")
     private String host;
     @Value("${solaredge.modbus.port:1502}")
@@ -34,15 +32,11 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     @Value("${solaredge.modbus.connectTimeoutMs:3000}")
     private int connectTimeoutMs;
 
-    // Registers (configurable)
-    @Value("${solaredge.modbus.registers.gridPowerOffset}")
+    // Use Relative Base-0 Offsets
+    @Value("${solaredge.modbus.registers.gridPowerOffset:206}")
     private int gridPowerOffset;
-    @Value("${solaredge.modbus.registers.sitePowerOffset}")
+    @Value("${solaredge.modbus.registers.sitePowerOffset:82}")
     private int sitePowerOffset;
-    @Value("${solaredge.modbus.registers.gridPowerWords}")
-    private int gridPowerWords;   // number of 16-bit registers (words)
-    @Value("${solaredge.modbus.registers.sitePowerWords}")
-    private int sitePowerWords;
 
     private final ReentrantLock connectionLock = new ReentrantLock();
 
@@ -59,7 +53,6 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
             IpParameters params = new IpParameters();
             params.setHost(host);
             params.setPort(port);
-            params.setEncapsulated(false);
 
             master = modbusFactory.createTcpMaster(params, true);
             master.setTimeout(connectTimeoutMs);
@@ -70,10 +63,6 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
                 log.info("Connected to SolarEdge Modbus TCP {}:{}", host, port);
             } catch (ModbusInitException e) {
                 log.error("Failed to init Modbus master: {}", e.getMessage());
-                // leave master uninitialized; reconnect attempts will be made on read
-                if (master != null) {
-                    try { master.destroy(); } catch (Exception ignored) {}
-                }
                 master = null;
             }
         } finally {
@@ -91,75 +80,51 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     }
 
     /**
-     * Read n 16-bit registers starting from offset (SolarEdge documentation addresses).
-     * Combines into a byte[] and return raw bytes in Big-Endian word order (Modbus network order).
+     * Reads a SunSpec value and its scale factor.
+     * SolarEdge Power (Inverter): Value at 83, SF at 84 (Distance 1)
+     * SolarEdge Power (Grid Meter): Value at 206, SF at 210 (Distance 4)
      */
-    private byte[] readRegistersRaw(int offset, int wordCount) throws ModbusTransportException {
+    private Double readSunSpecValue(int offset, int sfOffset) {
         ensureConnected();
-        // Modbus4j expects zero-based offset relative to register addressing depending on device mapping.
-        ReadHoldingRegistersRequest request = new ReadHoldingRegistersRequest(slaveId, offset, wordCount);
-        ReadHoldingRegistersResponse response = (ReadHoldingRegistersResponse) master.send(request);
-        if (response == null || response.isException()) {
-            throw new ModbusTransportException("Error reading registers: " + (response == null ? "null" : response.getExceptionMessage()));
-        }
-        short[] data = response.getShortData(); // array of signed 16-bit values
-        ByteBuffer bb = ByteBuffer.allocate(data.length * 2);
-        // Modbus returns big-endian per register; we'll put each short as big-endian
-        bb.order(ByteOrder.BIG_ENDIAN);
-        for (short s : data) bb.putShort(s);
-        return bb.array();
-    }
-
-    /**
-     * Convert raw register bytes to signed 32-bit int (big-endian) or signed 64-bit
-     * If device uses different endianess or swapped words, adapt here.
-     */
-    private long parseSignedInt(byte[] raw, int bytes) {
-        ByteBuffer bb = ByteBuffer.wrap(raw, 0, bytes);
-        bb.order(ByteOrder.BIG_ENDIAN);
-        if (bytes == 4) return bb.getInt();
-        if (bytes == 8) return bb.getLong();
-        throw new IllegalArgumentException("Unsupported byte length: " + bytes);
-    }
-
-    /**
-     * Public: grid power in Watts (positive export or positive import depending on device's sign convention).
-     * The address and number of words are configurable in application.yml.
-     */
-    public long readGridPowerWatts() {
         try {
-            byte[] raw = readRegistersRaw(gridPowerOffset, gridPowerWords);
-            return parseSignedInt(raw, gridPowerWords * 2);
-        } catch (Exception e) {
-            throw new UnableToReadException("Unable to read grid power : " + e);
-        }
-    }
+            int count = (sfOffset - offset) + 1;
+            ReadHoldingRegistersRequest request = new ReadHoldingRegistersRequest(slaveId, offset, count);
+            ReadHoldingRegistersResponse response = (ReadHoldingRegistersResponse) master.send(request);
 
-    public long readSitePowerWatts() {
-        try {
-            byte[] raw = readRegistersRaw(sitePowerOffset, sitePowerWords);
-            return parseSignedInt(raw, sitePowerWords * 2);
-        } catch (Exception e) {
-            throw new UnableToReadException("Unable to read solar power : " + e);
-        }
-    }
+            if (response == null || response.isException()) {
+                throw new ModbusTransportException("Read failed: " + (response == null ? "null" : response.getExceptionMessage()));
+            }
 
-    @Override
-    public void destroy() {
-        if (master != null) {
-            try {
-                master.destroy();
-            } catch (Exception ignored) {}
+            short[] data = response.getShortData();
+            short rawValue = data[0];
+            short scaleFactor = data[data.length - 1];
+
+            // Formula: Value * 10^SF
+            return rawValue * Math.pow(10, scaleFactor);
+        } catch (Exception e) {
+            log.error("Modbus read error at offset {}: {}", offset, e.getMessage());
+            return 0.0;
         }
     }
 
     @Override
     public Double gridMeter() {
-        return readGridPowerWatts() + 0.0;
+        // Documentation 40207 (Value) and 40211 (SF)
+        // Relative: 206 and 210
+        return readSunSpecValue(gridPowerOffset, gridPowerOffset + 4);
     }
 
     @Override
     public Double solarMeter() {
-        return readSitePowerWatts() + 0.0;
+        // Documentation 40084 (Value) and 40085 (SF)
+        // Relative: 83 and 84
+        return readSunSpecValue(sitePowerOffset, sitePowerOffset + 1);
+    }
+
+    @Override
+    public void destroy() {
+        if (master != null) {
+            master.destroy();
+        }
     }
 }
