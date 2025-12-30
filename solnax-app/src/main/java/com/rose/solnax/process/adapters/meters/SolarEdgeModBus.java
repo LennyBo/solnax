@@ -111,7 +111,7 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     public Double gridMeter() {
         // Documentation 40207 (Value) and 40211 (SF)
         // Relative: 206 and 210
-        return readSunSpecValue(gridPowerOffset, gridPowerOffset + 4);
+        return readSunSpecValue(gridPowerOffset, gridPowerOffset + 4) * -1;
     }
 
     @Override
