@@ -35,7 +35,7 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
     // Use Relative Base-0 Offsets
     @Value("${solaredge.modbus.registers.gridPowerOffset:206}")
     private int gridPowerOffset;
-    @Value("${solaredge.modbus.registers.sitePowerOffset:82}")
+    @Value("${solaredge.modbus.registers.sitePowerOffset:83}")
     private int sitePowerOffset;
 
     private final ReentrantLock connectionLock = new ReentrantLock();
