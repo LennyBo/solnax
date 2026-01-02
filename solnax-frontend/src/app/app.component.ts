@@ -1,12 +1,12 @@
 import {Component, OnInit} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {PowerService} from "./service/power.service";
-import {log} from "@angular-devkit/build-angular/src/builders/ssr-dev-server";
+import {DataChart} from "./components/data-chart/data-chart";
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, DataChart],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
