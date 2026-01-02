@@ -12,4 +12,6 @@ public interface PowerLogRepository extends JpaRepository<PowerLog, LocalDateTim
 
     List<PowerLog> findByTimeGreaterThanOrderByTime(LocalDateTime time);
 
+    List<PowerLog> findByTimeBetweenOrderByTimeAsc(LocalDateTime start,LocalDateTime stop);
+
 }

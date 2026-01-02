@@ -26,15 +26,15 @@ public class JobManager {
     void logPower(){
         LocalDateTime now = LocalDateTime.now();
 
-        Double houseOut = inverter.gridMeter();
-        Double solarIn = inverter.solarMeter();
+        Integer houseOut = inverter.gridMeter();
+        Integer solarIn = inverter.solarMeter();
 
         PowerLog powerLog = PowerLog.builder()
                 .time(now)
                 .solarIn(solarIn)
                 .houseOut(houseOut)
-                .chargerOut(0.0)
-                .heatOut(0.0)
+                .chargerOut(0)
+                .heatOut(0)
                 .build();
         powerLogManager.save(powerLog);
         log.info("Logged power log: {}", powerLog);

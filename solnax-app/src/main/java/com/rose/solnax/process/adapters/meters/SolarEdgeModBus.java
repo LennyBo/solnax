@@ -1,6 +1,5 @@
 package com.rose.solnax.process.adapters.meters;
 
-import com.rose.solnax.process.exception.UnableToReadException;
 import com.serotonin.modbus4j.ModbusFactory;
 import com.serotonin.modbus4j.ModbusMaster;
 import com.serotonin.modbus4j.exception.ModbusInitException;
@@ -84,7 +83,7 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
      * SolarEdge Power (Inverter): Value at 83, SF at 84 (Distance 1)
      * SolarEdge Power (Grid Meter): Value at 206, SF at 210 (Distance 4)
      */
-    private Double readSunSpecValue(int offset, int sfOffset) {
+    private Integer readSunSpecValue(int offset, int sfOffset) {
         ensureConnected();
         try {
             int count = (sfOffset - offset) + 1;
@@ -100,22 +99,22 @@ public class SolarEdgeModBus implements IPowerMeter, DisposableBean {
             short scaleFactor = data[data.length - 1];
 
             // Formula: Value * 10^SF
-            return rawValue * Math.pow(10, scaleFactor);
+            return (int) (rawValue * Math.pow(10, scaleFactor));
         } catch (Exception e) {
             log.error("Modbus read error at offset {}: {}", offset, e.getMessage());
-            return 0.0;
+            return 0;
         }
     }
 
     @Override
-    public Double gridMeter() {
+    public Integer gridMeter() {
         // Documentation 40207 (Value) and 40211 (SF)
         // Relative: 206 and 210
         return readSunSpecValue(gridPowerOffset, gridPowerOffset + 4) * -1;
     }
 
     @Override
-    public Double solarMeter() {
+    public Integer solarMeter() {
         // Documentation 40084 (Value) and 40085 (SF)
         // Relative: 83 and 84
         return readSunSpecValue(sitePowerOffset, sitePowerOffset + 1);

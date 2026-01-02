@@ -4,9 +4,9 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://192.168.1.10:5432/solnax
-    username: solnax
-    password: secretpw
+    url: jdbc:postgresql://localhost:5432/solnax
+    username: postgres
+    password: postgres
     driver-class-name: org.postgresql.Driver
 
   # JPA/Hibernate Configuration

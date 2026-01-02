@@ -23,25 +23,25 @@ public class PowerLog {
     private LocalDateTime time;
 
     @Column(name="solar_in")
-    private Double solarIn;
+    private Integer solarIn;
 
     @Column(name="house_out")
-    private Double houseOut;
+    private Integer houseOut;
 
     @Column(name="heat_out")
-    private Double heatOut;
+    private Integer heatOut;
 
     @Column(name="charger_out")
-    private Double chargerOut;
+    private Integer chargerOut;
 
     @Column(name="power_wall")
-    private Double powerWall;
+    private Integer powerWall;
 
     @Override
     public String toString() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
         return String.format(
-                "[%s] solar_in=%.2fw, house_out=%.2fw, heat_out=%.2fw, charger_out=%.2fw, power_wall=%.2fw",
+                "[%s] solar_in=%dw, house_out=%dw, heat_out=%dw, charger_out=%dw, power_wall=%dw",
                 time.format(fmt),
                 solarIn,
                 houseOut,
