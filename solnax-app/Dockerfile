@@ -22,6 +22,7 @@ RUN mvn -B -DskipTests package
 FROM --platform=${TARGETPLATFORM} arm32v7/eclipse-temurin:17-jre
 WORKDIR /app
 
-COPY --from=build /build/solnax-app/target/*.jar app.jar
+COPY --from=build /build/solnax-app/target/solnax-app-*.jar app.jar
+
 
 ENTRYPOINT ["java","-jar","/app/app.jar"]
