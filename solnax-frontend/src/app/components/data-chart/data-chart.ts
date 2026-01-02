@@ -1,6 +1,10 @@
-import {Component, signal} from '@angular/core';
+import {Component, DestroyRef, OnInit, signal} from '@angular/core';
 import {BaseChartDirective} from "ng2-charts";
-import {ChartConfiguration, ChartData, ChartEvent} from "chart.js";
+import {ChartConfiguration, ChartData} from "chart.js";
+import {PowerService} from "../../service/power.service";
+import {switchMap, timer} from "rxjs";
+import {takeUntilDestroyed} from "@angular/core/rxjs-interop";
+import {PowerLogs} from "../../model/power-logs";
 
 @Component({
   selector: 'app-data-chart',
@@ -9,38 +13,57 @@ import {ChartConfiguration, ChartData, ChartEvent} from "chart.js";
   templateUrl: './data-chart.html',
   styleUrl: './data-chart.scss',
 })
-export class DataChart {
-// Using Signals for reactive data updates
-  clickedLabel = signal<string>('None');
+export class DataChart implements OnInit {
 
+  constructor(private powerService: PowerService,
+              private destroyRef: DestroyRef) {
+  }
+
+  // Initialize the chart signal with empty data
   chartData = signal<ChartData<'line'>>({
-    labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+    labels: [],
     datasets: [
       {
-        data: [65, 59, 80, 81],
-        label: 'Sales 2026',
-        backgroundColor: '#42A5F5'
-      }
+        data: [],
+        label: 'Solar Production',
+        borderColor: '#4caf50',
+        tension: 0.3,
+        fill: 'origin',
+        backgroundColor: 'rgba(76, 175, 80, 0.1)'
+      },
+      {data: [], label: 'House Consumption', borderColor: '#f44336', tension: 0.3}
     ]
   });
 
-  chartOptions: ChartConfiguration<'bar'>['options'] = {
+  chartOptions: ChartConfiguration<'line'>['options'] = {
     responsive: true,
-    plugins: {
-      legend: { display: true },
-      tooltip: { enabled: true } // Interactive hover tooltips
-    },
+    maintainAspectRatio: false,
+    elements: {point: {radius: 0}}, // Hide points for cleaner high-density data
     scales: {
-      y: { beginAtZero: true }
+      y: {title: {display: true, text: 'Watts (W)'}}
+    },
+    plugins: {
+      tooltip: {mode: 'index', intersect: false}
     }
   };
 
-  // Interaction Handler
-  onChartClick({ event, active }: { event?: ChartEvent, active?: object[] }): void {
-    if (active && active.length > 0) {
-      const index = (active[0] as any).index;
-      const label = this.chartData().labels?.[index] as string;
-      this.clickedLabel.set(label);
-    }
+  ngOnInit() {
+    // Poll the backend every 30 seconds
+    timer(0, 30000).pipe(
+      switchMap(() => this.powerService.getPower()),
+      takeUntilDestroyed(this.destroyRef) // v21 cleanup pattern
+    ).subscribe(data => {
+      this.updateChart(data);
+    });
+  }
+
+  private updateChart(newData: PowerLogs) {
+    this.chartData.set({
+      labels: newData.times,
+      datasets: [
+        {...this.chartData().datasets[0], data: newData.solarIn},
+        {...this.chartData().datasets[1], data: newData.house}
+      ]
+    });
   }
 }

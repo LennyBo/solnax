@@ -1,9 +1,7 @@
-<div style="display: block; width: 600px;">
+<div class="chart-container">
   <canvas baseChart
           [data]="chartData()"
           [options]="chartOptions"
-          [type]="'bar'"
-          (chartClick)="onChartClick($event)">
+          [type]="'line'">
   </canvas>
 </div>
-<p>Last Clicked Label: <strong>{{ clickedLabel() }}</strong></p>
