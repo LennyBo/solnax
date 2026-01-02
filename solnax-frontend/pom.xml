@@ -6,9 +6,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.solnax</groupId>
-        <artifactId>solnax</artifactId>
-        <version>1.0.0</version>
+      <groupId>com.solnax</groupId>
+      <artifactId>solnax</artifactId>
+      <version>1.0.0</version>
+      <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>solnax-frontend</artifactId>

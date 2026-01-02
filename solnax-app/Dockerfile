@@ -1,13 +1,17 @@
-# syntax=docker/dockerfile:1.4
-ARG BUILDPLATFORM=linux/amd64
-ARG TARGETPLATFORM=linux/arm/v7
+FROM maven:3.9-eclipse-temurin-21 AS build
 
-FROM --platform=${BUILDPLATFORM} maven:3.9.6-eclipse-temurin-17 AS build
-WORKDIR /app
+WORKDIR /build
+
+COPY pom.xml .
+COPY solnax-app/pom.xml solnax-app/pom.xml
+COPY solnax-frontend/pom.xml solnax-frontend/pom.xml
+
+RUN mvn -B -DskipTests dependency:go-offline
+
 COPY . .
-RUN mvn -B package -DskipTests
+RUN mvn -B -DskipTests package
 
-FROM --platform=${TARGETPLATFORM} arm32v7/eclipse-temurin:17-jre
+FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+COPY --from=build /build/solnax-app/target/*.jar app.jar
+ENTRYPOINT ["java","-jar","app.jar"]
