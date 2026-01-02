@@ -9,8 +9,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
-import java.util.stream.Collector;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -36,30 +40,36 @@ public class PowerLogManager {
     }
 
     @Transactional(readOnly = true)
-    public PowerLogs getPowerLogDTOForPeriod(LocalDateTime start, LocalDateTime stop){
-        if(start.isAfter(stop)){
-            throw new IllegalArgumentException("Start is after stop");
-        }
-        List<PowerLog> powerLogsOfTimePeriod = powerLogRepository.findByTimeBetweenOrderByTimeAsc(start, stop);
-        return mapToPowerLogs(powerLogsOfTimePeriod);
-    }
+    public PowerLogs getPowerLogDTOForPeriod(LocalDateTime start, LocalDateTime stop) {
+        List<PowerLog> actualLogs = powerLogRepository.findByTimeBetweenOrderByTimeAsc(start, stop);
 
-    private PowerLogs mapToPowerLogs(List<PowerLog> powerLogsOfTimePeriod) {
-        return powerLogsOfTimePeriod.stream().collect(
-                Collector.of(
-                        PowerLogs::new,
-                        (t,s) -> {
-                            t.getTimes().add(s.getTime().toLocalTime());
-                            t.getSolarIn().add(s.getSolarIn());
-                            t.getHouse().add(s.getSolarIn() + s.getHouseOut());
-                        },
-                        (t1,t2) -> {
-                            t1.getTimes().addAll(t2.getTimes());
-                            t1.getSolarIn().addAll(t2.getSolarIn());
-                            t1.getHouse().addAll(t2.getHouse());
-                            return t1;
-                        }
-                )
-        );
+        // 1. Convert actual logs into a Map for quick lookup (key: LocalTime)
+        Map<LocalTime, PowerLog> logMap = actualLogs.stream()
+                .collect(Collectors.toMap(
+                        log -> log.getTime().toLocalTime().withNano(0).withSecond(0),
+                        Function.identity(),
+                        (existing, replacement) -> existing // Handle duplicates if they exist
+                ));
+
+        // 2. Generate all 5-minute intervals for the day
+        LocalTime dayStart = LocalTime.MIN; // 00:00
+        int totalIntervals = 288; // (24 * 60) / 5
+
+        PowerLogs paddedLogs = new PowerLogs();
+
+        Stream.iterate(dayStart, time -> time.plusMinutes(5))
+                .limit(totalIntervals)
+                .forEach(currentTime -> {
+                    paddedLogs.getTimes().add(currentTime);
+
+                    PowerLog actual = logMap.get(currentTime);
+                    if (actual != null) {
+                        // Data exists for this slot
+                        paddedLogs.getSolarIn().add(actual.getSolarIn());
+                        paddedLogs.getHouse().add(actual.getSolarIn() + actual.getHouseOut());
+                    }
+                });
+
+        return paddedLogs;
     }
 }
