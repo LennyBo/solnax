@@ -24,7 +24,6 @@ jobs:
           cache: maven
 
       - name: Build JAR with Maven
-        working-directory: solnax-app
         run: mvn -B package --file pom.xml
 
       - name: Log in to GHCR
