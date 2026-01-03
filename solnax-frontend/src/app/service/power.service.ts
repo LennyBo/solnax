@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import {Observable} from "rxjs";
 import {HttpClient} from "@angular/common/http";
+import {InstantPower} from "../model/instant-power";
+import {PowerLogs} from "../model/power-logs";
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +14,11 @@ export class PowerService {
   constructor(private http: HttpClient) { }
 
 
-  getPower(): Observable<any> {
-    return this.http.get(this.baseUrl);
+  getPower(): Observable<PowerLogs> {
+    return this.http.get<PowerLogs>(this.baseUrl);
+  }
+
+  getInstantPower(): Observable<InstantPower>{
+    return this.http.get<InstantPower>(this.baseUrl + "/current");
   }
 }

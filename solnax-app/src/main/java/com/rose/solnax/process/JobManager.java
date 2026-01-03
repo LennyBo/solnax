@@ -17,26 +17,13 @@ import java.time.LocalDateTime;
 public class JobManager {
 
     private final PowerLogManager powerLogManager;
-    private final IPowerMeter inverter;
+
     private final IChargePoint chargePoint;
 
 
     @Scheduled(cron = "0 */5 * * * *")
-    @Transactional
     void logPower(){
-        LocalDateTime now = LocalDateTime.now();
-
-        Integer houseOut = inverter.gridMeter();
-        Integer solarIn = inverter.solarMeter();
-
-        PowerLog powerLog = PowerLog.builder()
-                .time(now)
-                .solarIn(solarIn)
-                .houseOut(houseOut)
-                .chargerOut(0)
-                .heatOut(0)
-                .build();
-        powerLogManager.save(powerLog);
+        PowerLog powerLog = powerLogManager.logPower();
         log.info("Logged power log: {}", powerLog);
     }
 

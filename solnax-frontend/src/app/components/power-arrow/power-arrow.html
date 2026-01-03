@@ -1,5 +1,5 @@
-<div class="d-flex justify-content-center rounded-5 bg-dark-subtle mb-3 p-2">
-  {{ value }}kW
+<div class="d-flex justify-content-center rounded-5 bg-dark-subtle mb-2 p-2 arrow-label">
+  {{ Math.abs(value) | number: '1.0-2' }}kW
 </div>
 <div class="arrow-container" [style.transform]="transformStyle">
   <div

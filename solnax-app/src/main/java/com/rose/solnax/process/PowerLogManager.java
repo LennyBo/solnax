@@ -1,10 +1,14 @@
 package com.rose.solnax.process;
 
 
+import com.rose.solnax.model.dto.InstantPower;
 import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.model.repository.PowerLogRepository;
+import com.rose.solnax.process.adapters.meters.IPowerMeter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +22,10 @@ import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class PowerLogManager {
 
-
-
+    private final IPowerMeter inverter;
     public final PowerLogRepository powerLogRepository;
 
     @Transactional
@@ -71,5 +75,40 @@ public class PowerLogManager {
                 });
 
         return paddedLogs;
+    }
+
+
+    /**
+     * This method acts as the "Cached" version.
+     * Spring will skip the method body if a value is found in 'power_logs'.
+     */
+    @Cacheable(value = "power_logs", key = "'latest'")
+    public InstantPower getInstantPower() {
+        PowerLog powerLogCached = getPowerLog();
+        return InstantPower.builder()
+                .solar(powerLogCached.getSolarIn() / 1000.0)
+                .house(powerLogCached.getHouseOut() / 1000.0 * -1)
+                .heat(powerLogCached.getHeatOut() / 1000.0)
+                .evCharger(powerLogCached.getChargerOut() / 1000.0)
+                .build();
+    }
+
+
+    public PowerLog getPowerLog(){
+        Integer houseOut = inverter.gridMeter();
+        Integer solarIn = inverter.solarMeter();
+
+        return PowerLog.builder()
+                .time(LocalDateTime.now())
+                .solarIn(solarIn)
+                .houseOut(houseOut)
+                .chargerOut(0)
+                .heatOut(0)
+                .build();
+    }
+
+    @Transactional
+    public PowerLog logPower(){
+        return powerLogRepository.save(getPowerLog());
     }
 }

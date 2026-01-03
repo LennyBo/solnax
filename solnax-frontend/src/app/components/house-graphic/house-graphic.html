@@ -1,7 +1,7 @@
 <div class="house-graphic-container bg-light rounded-5">
   <img [src]="'assets/solar-house.svg'" class="base-image" alt="Base Map">
   <div
-    *ngFor="let point of points"
+    *ngFor="let point of points()"
     class="point-wrapper"
     [style.left.%]="point.x"
     [style.top.%]="point.y">
@@ -12,4 +12,9 @@
     </app-power-arrow>
   </div>
 
+
+
+</div>
+<div>
+  <app-data-chart></app-data-chart>
 </div>

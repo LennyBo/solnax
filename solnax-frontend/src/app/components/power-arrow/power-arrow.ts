@@ -1,8 +1,11 @@
 import {Component, Input} from '@angular/core';
+import {DecimalPipe} from "@angular/common";
 
 @Component({
   selector: 'app-power-arrow',
-  imports: [],
+  imports: [
+    DecimalPipe
+  ],
   templateUrl: './power-arrow.html',
   styleUrl: './power-arrow.scss',
   standalone: true
@@ -14,7 +17,7 @@ export class PowerArrow {
 
   // Logic to determine color
   get arrowColor(): string {
-    if(Math.abs(this.value) < 10){
+    if(Math.abs(this.value) < 0.5){
       return 'gray';
     }
     return this.value > 0 ? 'green' : 'orange';
@@ -28,4 +31,5 @@ export class PowerArrow {
     return `rotate(${totalRotation}deg)`;
   }
 
+  protected readonly Math = Math;
 }

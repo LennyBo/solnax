@@ -1,10 +1,10 @@
 package com.rose.solnax.controllers;
 
+import com.rose.solnax.model.dto.InstantPower;
 import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.process.PowerLogManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,5 +27,10 @@ public class PowerLogController {
         start = onDate.atTime(LocalTime.of(0,0));
         stop = onDate.plusDays(1).atTime(LocalTime.of(0,0));
         return powerLogManager.getPowerLogDTOForPeriod(start,stop);
+    }
+
+    @GetMapping("/api/power/current")
+    public InstantPower getInstantPower(){
+        return powerLogManager.getInstantPower();
     }
 }
