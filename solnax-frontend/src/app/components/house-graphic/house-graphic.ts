@@ -1,13 +1,14 @@
 import { Component } from '@angular/core';
 import {PowerArrow} from "../power-arrow/power-arrow";
 import {ArrowPoint} from "../../model/arrow-point";
-import {NgForOf} from "@angular/common";
+import {NgForOf, NgOptimizedImage} from "@angular/common";
 
 @Component({
   selector: 'app-house-graphic',
   imports: [
     PowerArrow,
-    NgForOf
+    NgForOf,
+    NgOptimizedImage
   ],
   templateUrl: './house-graphic.html',
   styleUrl: './house-graphic.scss',
