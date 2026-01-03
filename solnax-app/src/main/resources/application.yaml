@@ -41,7 +41,11 @@ logging:
     com.rose.solnax: DEBUG
     org.hibernate.SQL: INFO
     org.flywaydb.core: INFO
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
 
 solaredge:
   modbus:
