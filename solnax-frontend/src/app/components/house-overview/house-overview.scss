@@ -2,4 +2,16 @@
   .main-container{
     padding: 0;
   }
+
+  .main-graphic{
+    margin-top: 0;
+  }
 }
+
+@media (min-width:601px) {
+  .main-graphic{
+    margin-top: 10px;
+  }
+}
+
+

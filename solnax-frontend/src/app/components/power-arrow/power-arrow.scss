@@ -1,8 +1,16 @@
+/* arrow.component.css */
 .arrow-container {
   display: inline-block;
-  transition: transform 0.3s ease; /* Smooth rotation */
-  width: 50px;
-  height: 50px;
+  transition: transform 0.3s ease;
+
+  /* Use container relative units or percentages */
+  /* 5% of the container's width makes them scale with the map */
+  width: 8cqw;
+  height: 8cqw;
+
+  /* Fallback for older browsers */
+  min-width: 20px;
+  min-height: 20px;
 }
 
 .arrow-icon {

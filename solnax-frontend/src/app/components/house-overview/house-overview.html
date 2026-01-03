@@ -1,8 +1,6 @@
 <div class="main-container container">
-  <app-house-graphic></app-house-graphic>
-  <app-power-arrow [value]="arrowVal" [manualRotation]="0"></app-power-arrow>
-  <div class="control-group">
-    <label>Value (Color/Direction): {{ arrowVal }}</label>
-    <input type="range" min="-50" max="50" [(ngModel)]="arrowVal">
+  <div class="main-graphic">
+    <app-house-graphic></app-house-graphic>
   </div>
+
 </div>
