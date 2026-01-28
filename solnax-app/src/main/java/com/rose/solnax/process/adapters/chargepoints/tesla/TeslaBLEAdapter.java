@@ -1,8 +1,10 @@
 package com.rose.solnax.process.adapters.chargepoints.tesla;
 
+import com.rose.solnax.process.adapters.chargepoints.tesla.model.VehicleApiResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
@@ -35,7 +37,7 @@ public class TeslaBLEAdapter {
     }
 
 
-    public TeslaProxyResponse chargeStart(String vin){
+    public VehicleApiResponse chargeStart(String vin){
         return retryTemplate.execute(context ->
                 restClient.post()
                         .uri("/api/1/vehicles/" + vin + "/command/charge_start")
@@ -43,11 +45,11 @@ public class TeslaBLEAdapter {
                         .onStatus(HttpStatusCode::is5xxServerError, (req,res) -> {
                             throw new IOException("Server error : " + res.getStatusCode());
                         })
-                        .body(TeslaProxyResponse.class)
+                        .body(VehicleApiResponse.class)
                 );
     }
 
-    public TeslaProxyResponse chargeStop(String vin){
+    public VehicleApiResponse chargeStop(String vin){
         return retryTemplate.execute(context ->
                 restClient.post()
                         .uri("/api/1/vehicles/" + vin + "/command/charge_stop")
@@ -55,19 +57,30 @@ public class TeslaBLEAdapter {
                         .onStatus(HttpStatusCode::is5xxServerError, (req,res) -> {
                             throw new IOException("Server error : " + res.getStatusCode());
                         })
-                        .body(TeslaProxyResponse.class)
+                        .body(VehicleApiResponse.class)
         );
     }
 
-    public TeslaProxyResponse vehicle_data(String vin){
+    @Cacheable(value = "tesla-ble",key = "'latest'")
+    public VehicleApiResponse vehicle_data(String vin){
         return retryTemplate.execute(context ->
-                restClient.get()
-                        .uri("/api/1/vehicles/" + vin + "/vehicle_data")
-                        .retrieve()
-                        .onStatus(HttpStatusCode::is5xxServerError, (req,res) -> {
-                            throw new IOException("Server error : " + res.getStatusCode());
-                        })
-                        .body(TeslaProxyResponse.class)
+                {
+                    int attempt = context.getRetryCount() + 1;
+                    String path = "/api/1/vehicles/" + vin + "/vehicle_data";
+                    log.info(
+                            "HTTP call attempt {} | url={}",
+                            attempt,
+                            baseUrl + path
+                    );
+
+                    return restClient.get()
+                            .uri(path)
+                            .retrieve()
+                            .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                                throw new IOException("Server error : " + res.getStatusCode());
+                            })
+                            .body(VehicleApiResponse.class);
+                }
         );
     }
 

@@ -21,14 +21,6 @@ spring:
 
   cache:
     type: caffeine
-    cache-names:
-      - power_logs
-    caffeine:
-      spec: >
-        initialCapacity=10,
-        maximumSize=500,
-        expireAfterWrite=1s,
-        recordStats
 
 # Server Configuration
 server:
@@ -54,6 +46,6 @@ solaredge:
     slaveId: 1
     connectTimeoutMs: 3000
 tesla-ble:
-  host: http://solnax.local:8080
+  host: http://192.168.0.156:8080
   white: VINWHITE
   black: VINBLACK

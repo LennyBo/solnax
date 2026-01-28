@@ -1,19 +1,25 @@
 package com.rose.solnax.process.adapters.chargepoints;
 
 import com.rose.solnax.process.adapters.chargepoints.tesla.TeslaBLEAdapter;
+import com.rose.solnax.process.adapters.chargepoints.tesla.model.VehicleApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
 public class TeslaWallCharger implements IChargePoint {
 
-    @Value("${tesla-ble.white")
+    @Value("${tesla-ble.white}")
     String whiteVin;
 
-    @Value("${tesla-ble.black")
+    @Value("${tesla-ble.black}")
     String blackVin;
+
+    String connectedCar = null;
+    LocalDateTime lastCheckTime = null;
 
     private final TeslaBLEAdapter bleAdapter;
 
@@ -34,6 +40,10 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public void startCharge() {
+        if(!isChargeable()){
+            log.info("No car connected to charge");
+            return;
+        }
         if(isWhiteChargeable()){
             log.info("White is ready to charge -> Starting!");
             bleAdapter.chargeStart(whiteVin);
@@ -56,16 +66,33 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public boolean isChargeable() {
-        return false;
+        log.info("Checking if a car is ready to charge");
+        lastCheckTime = LocalDateTime.now();
+        if(isBlackChargeable()){
+            log.info("Black is connected");
+            connectedCar = blackVin;
+            return true;
+        }else{
+            boolean whiteChargeable = isWhiteChargeable();
+            if(whiteChargeable){
+                connectedCar = whiteVin;
+                log.info("White is connected");
+            }else{
+                log.info("No car connected");
+                connectedCar = null;
+            }
+            return whiteChargeable;
+        }
     }
 
     private boolean isBlackChargeable(){
-        //Call vehicle data, check if not already charging
-        return false;
+        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
+        return teslaProxyResponse.canCharge();
     }
 
     private boolean isWhiteChargeable(){
-        return false;
+        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
+        return teslaProxyResponse.canCharge();
     }
 
     private boolean isBlackCharging(){
