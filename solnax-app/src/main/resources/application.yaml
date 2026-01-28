@@ -57,3 +57,5 @@ tesla-ble:
   host: http://solnax.local:8080
   white: VINWHITE
   black: VINBLACK
+TWCManager:
+  host: http://192.168.0.221

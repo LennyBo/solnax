@@ -5,6 +5,8 @@ import com.rose.solnax.model.dto.InstantPower;
 import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.model.repository.PowerLogRepository;
+import com.rose.solnax.process.adapters.chargepoints.tesla.TWCManagerAdapter;
+import com.rose.solnax.process.adapters.chargepoints.tesla.model.TeslaWallConnectorStatus;
 import com.rose.solnax.process.adapters.meters.IPowerMeter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.util.stream.Stream;
 public class PowerLogManager {
 
     private final IPowerMeter inverter;
+    private final TWCManagerAdapter twcManagerAdapter;
     public final PowerLogRepository powerLogRepository;
 
     @Transactional
@@ -97,12 +100,19 @@ public class PowerLogManager {
     public PowerLog getPowerLog(){
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
+        double chargeNowAmps = 0.0;
+        try{
+            TeslaWallConnectorStatus twcStatus = twcManagerAdapter.getTWCStatus();
+            chargeNowAmps = Double.parseDouble(twcStatus.getChargeNowAmps());
+        }catch (Exception e){
+            log.warn("Can't get TWCStatus");
+        }
 
         return PowerLog.builder()
                 .time(LocalDateTime.now())
                 .solarIn(solarIn)
                 .houseOut(houseOut)
-                .chargerOut(0)
+                .chargerOut((int) (690 * chargeNowAmps))
                 .heatOut(0)
                 .build();
     }
