@@ -23,8 +23,8 @@ import {DataChart} from "../data-chart/data-chart";
 export class HouseGraphic implements OnInit{
   points = signal<ArrowPoint[]> ([
     { x: 52, y: 25, value: 80, rotation: 0 },
-    { x: 25, y: 42, value: -80, rotation: -90 },
-    { x: 25, y: 77,  value: -80, rotation: -90 },
+    { x: 25, y: 42, value: -80, rotation: 90 },
+    { x: 25, y: 77,  value: -80, rotation: 90 },
     { x: 74, y: 62,  value: -80, rotation: -90 },
 ]);
 
