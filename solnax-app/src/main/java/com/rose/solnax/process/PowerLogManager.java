@@ -103,7 +103,7 @@ public class PowerLogManager {
         double chargeNowAmps = 0.0;
         try{
             TeslaWallConnectorStatus twcStatus = twcManagerAdapter.getTWCStatus();
-            chargeNowAmps = Double.parseDouble(twcStatus.getChargeNowAmps());
+            chargeNowAmps = Double.parseDouble(twcStatus.getTwc().get(0).getTwcChargeSpeed();
         }catch (Exception e){
             log.warn("Can't get TWCStatus");
         }
