@@ -38,9 +38,9 @@ public class PowerLogManager {
 
 
     @Transactional(readOnly = true)
-    public PowerLog getLastPowerLog(){
+    public PowerLog getLastPowerLog() {
         List<PowerLog> logs = powerLogRepository.findByTimeGreaterThanOrderByTime(LocalDateTime.now().minusMinutes(5));
-        if(!logs.isEmpty()){
+        if (!logs.isEmpty()) {
             return logs.get(0);
         }
         return null;
@@ -72,8 +72,10 @@ public class PowerLogManager {
                     PowerLog actual = logMap.get(currentTime);
                     if (actual != null) {
                         // Data exists for this slot
+                        Integer house = actual.getSolarIn() + actual.getHouseOut() - actual.getChargerOut();
                         paddedLogs.getSolarIn().add(actual.getSolarIn());
-                        paddedLogs.getHouse().add(actual.getSolarIn() + actual.getHouseOut());
+                        paddedLogs.getHouse().add(house);
+                        paddedLogs.getCharger().add(actual.getChargerOut());
                     }
                 });
 
@@ -97,14 +99,14 @@ public class PowerLogManager {
     }
 
 
-    public PowerLog getPowerLog(){
+    public PowerLog getPowerLog() {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
         double chargeNowAmps = 0.0;
-        try{
+        try {
             TeslaWallConnectorStatus twcStatus = twcManagerAdapter.getTWCStatus();
             chargeNowAmps = Double.parseDouble(twcStatus.getChargeNowAmps());
-        }catch (Exception e){
+        } catch (Exception e) {
             log.warn("Can't get TWCStatus");
         }
 
@@ -118,7 +120,7 @@ public class PowerLogManager {
     }
 
     @Transactional
-    public PowerLog logPower(){
+    public PowerLog logPower() {
         return powerLogRepository.save(getPowerLog());
     }
 }
