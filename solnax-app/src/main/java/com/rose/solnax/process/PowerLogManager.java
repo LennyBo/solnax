@@ -5,6 +5,8 @@ import com.rose.solnax.model.dto.InstantPower;
 import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.model.repository.PowerLogRepository;
+import com.rose.solnax.process.adapters.chargepoints.tesla.TWCManagerAdapter;
+import com.rose.solnax.process.adapters.chargepoints.tesla.model.TeslaWallConnectorStatus;
 import com.rose.solnax.process.adapters.meters.IPowerMeter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.util.stream.Stream;
 public class PowerLogManager {
 
     private final IPowerMeter inverter;
+    private final TWCManagerAdapter twcManagerAdapter;
     public final PowerLogRepository powerLogRepository;
 
     @Transactional
@@ -35,9 +38,9 @@ public class PowerLogManager {
 
 
     @Transactional(readOnly = true)
-    public PowerLog getLastPowerLog(){
+    public PowerLog getLastPowerLog() {
         List<PowerLog> logs = powerLogRepository.findByTimeGreaterThanOrderByTime(LocalDateTime.now().minusMinutes(5));
-        if(!logs.isEmpty()){
+        if (!logs.isEmpty()) {
             return logs.get(0);
         }
         return null;
@@ -69,8 +72,10 @@ public class PowerLogManager {
                     PowerLog actual = logMap.get(currentTime);
                     if (actual != null) {
                         // Data exists for this slot
+                        Integer house = actual.getSolarIn() + actual.getHouseOut() - actual.getChargerOut();
                         paddedLogs.getSolarIn().add(actual.getSolarIn());
-                        paddedLogs.getHouse().add(actual.getSolarIn() + actual.getHouseOut());
+                        paddedLogs.getHouse().add(house);
+                        paddedLogs.getCharger().add(actual.getChargerOut());
                     }
                 });
 
@@ -94,21 +99,28 @@ public class PowerLogManager {
     }
 
 
-    public PowerLog getPowerLog(){
+    public PowerLog getPowerLog() {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
+        double chargeNowAmps = 0.0;
+        try {
+            TeslaWallConnectorStatus twcStatus = twcManagerAdapter.getTWCStatus();
+            chargeNowAmps = Double.parseDouble(twcStatus.getTwc().get(0).getTwcChargeSpeed());
+        }catch (Exception e){
+            log.warn("Can't get TWCStatus");
+        }
 
         return PowerLog.builder()
                 .time(LocalDateTime.now())
                 .solarIn(solarIn)
                 .houseOut(houseOut)
-                .chargerOut(0)
+                .chargerOut((int) (690 * chargeNowAmps))
                 .heatOut(0)
                 .build();
     }
 
     @Transactional
-    public PowerLog logPower(){
+    public PowerLog logPower() {
         return powerLogRepository.save(getPowerLog());
     }
 }
