@@ -32,3 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 /solnax-frontend/node/
+/Solnax Bruno (API)/.env
