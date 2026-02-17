@@ -17,6 +17,9 @@ jobs:
       - name: Check Docker
         run: docker info
 
+      - name: Set Docker host for Testcontainers
+        run: echo "DOCKER_HOST=unix:///var/run/docker.sock" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
