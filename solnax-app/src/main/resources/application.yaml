@@ -58,4 +58,4 @@ tesla-ble:
   white: VINWHITE
   black: VINBLACK
 TWCManager:
-  host: http://192.168.0.221
+  host: http://192.168.0.89
