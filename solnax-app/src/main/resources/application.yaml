@@ -21,14 +21,6 @@ spring:
 
   cache:
     type: caffeine
-    cache-names:
-      - power_logs
-    caffeine:
-      spec: >
-        initialCapacity=10,
-        maximumSize=500,
-        expireAfterWrite=1s,
-        recordStats
 
 # Server Configuration
 server:
