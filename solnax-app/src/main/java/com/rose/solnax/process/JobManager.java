@@ -20,6 +20,10 @@ public class JobManager {
 
     private final IChargePoint chargePoint;
 
+    private static final int IMPORT_THRESHOLD = 2000;
+    private static final int EXPORT_THRESHOLD = -3800;
+    private static final int CHARGER_MIN_POWER = 3000;
+
 
     @Scheduled(cron = "0 */5 * * * *")
     void logPower(){
@@ -27,29 +31,31 @@ public class JobManager {
         log.info("Logged power log: {}", powerLog);
     }
 
-    @Scheduled(cron="0 */6 6-22 * * *")
+
+
+    @Scheduled(cron = "0 */6 6-22 * * *")
     @Transactional(readOnly = true)
-    void optimizePower(){
+    void optimizePower() {
         PowerLog lastLog = powerLogManager.getLastPowerLog();
-        if(lastLog == null){
+        if (lastLog == null) {
             log.error("No recent log found. Aborting optimization!");
             return;
         }
+
+        boolean isCharging = lastLog.getChargerOut() >= CHARGER_MIN_POWER;
+        boolean isImporting = lastLog.getHouseOut() > IMPORT_THRESHOLD;
+        boolean isExporting = lastLog.getHouseOut() < EXPORT_THRESHOLD;
+
         log.info("Checking for optimizations");
-        if(powerExcess(lastLog)){
-            log.info("Starting charge");
+
+        if (!isCharging && isExporting) {
+            log.info("Starting charge (excess power available)");
             chargePoint.startCharge();
-        }else if(powerRecess(lastLog)){
-            log.info("Stopping charge");
+        } else if (isCharging && isImporting) {
+            log.info("Stopping charge (importing power)");
             chargePoint.stopCharge();
+        } else {
+            log.info("No action needed");
         }
-    }
-
-    private boolean powerRecess(PowerLog lastLog) {
-        return lastLog.getHouseOut() > 2000 && lastLog.getChargerOut() > 3000;  //means we are charging and importing need to stop
-    }
-
-    private boolean powerExcess(PowerLog lastLog) {
-        return lastLog.getHouseOut() < -3800 && lastLog.getChargerOut() < 3000; //Means we are not charging and exporting need to start
     }
 }
