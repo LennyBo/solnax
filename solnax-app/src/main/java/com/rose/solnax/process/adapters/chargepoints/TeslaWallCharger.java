@@ -4,6 +4,7 @@ import com.rose.solnax.process.adapters.chargepoints.tesla.TeslaBLEAdapter;
 import com.rose.solnax.process.adapters.chargepoints.tesla.model.VehicleApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -83,6 +84,12 @@ public class TeslaWallCharger implements IChargePoint {
             }
             return whiteChargeable;
         }
+    }
+
+    @Bean
+    public Object logVins(){
+        log.info("Black: {} White: {}",blackVin,whiteVin);
+        return null;
     }
 
     private boolean isBlackChargeable(){
