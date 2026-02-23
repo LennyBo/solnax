@@ -98,7 +98,7 @@ class JobManagerTest {
     @Test
     void shouldNotStartAtExportThresholdBoundary() {
         when(powerLogManager.getLastPowerLog())
-                .thenReturn(log(-3800, 0));
+                .thenReturn(log(-3000, 0));
 
         optimizer.optimizePower();
 
