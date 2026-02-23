@@ -14,6 +14,7 @@ jobs:
     env:
       IMAGE: ghcr.io/lennybo/solnax/solnax-app
     steps:
+
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
