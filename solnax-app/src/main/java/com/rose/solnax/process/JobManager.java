@@ -20,9 +20,9 @@ public class JobManager {
 
     private final IChargePoint chargePoint;
 
-    private static final int IMPORT_THRESHOLD = 2000;
-    private static final int EXPORT_THRESHOLD = -3800;
-    private static final int CHARGER_MIN_POWER = 3000;
+    private static final int IMPORT_THRESHOLD = 2000; //If we buy more than this we try to lower consumption
+    private static final int EXPORT_THRESHOLD = -3000; //If we export more than that we try to optimize
+    private static final int CHARGER_MIN_POWER = 3000; //If charger is above this level we assume already charging
 
 
     @Scheduled(cron = "0 */5 * * * *")
