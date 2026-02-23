@@ -54,7 +54,7 @@ solaredge:
     slaveId: 1
     connectTimeoutMs: 3000
 tesla-ble:
-  host: http://solnax.local:8080
+  host: http://192.168.0.90:8080
   white: VINWHITE
   black: VINBLACK
 TWCManager:
