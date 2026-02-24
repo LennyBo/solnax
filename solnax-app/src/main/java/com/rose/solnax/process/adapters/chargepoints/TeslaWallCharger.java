@@ -14,10 +14,17 @@ import java.time.LocalDateTime;
 public class TeslaWallCharger implements IChargePoint {
 
     @Value("${tesla-ble.white}")
-    String whiteVin;
+    private String whiteVin;
 
     @Value("${tesla-ble.black}")
-    String blackVin;
+    private String blackVin;
+
+    @Value("${tesla-ble.max-charge-level}")
+    private Integer maxChargeLevel;
+
+    @Value("${tesla-ble.min-charge-level}")
+    private Integer minChargeLevel;
+    
 
     String connectedCar = null;
     LocalDateTime lastCheckTime = null;
@@ -47,9 +54,11 @@ public class TeslaWallCharger implements IChargePoint {
         }
         if(isWhiteChargeable()){
             log.info("White is ready to charge -> Starting!");
+            bleAdapter.setChargeState(maxChargeLevel,whiteVin);
             bleAdapter.chargeStart(whiteVin);
         }else if(isBlackChargeable()){
             log.info("Black is ready to charge -> Starting!");
+            bleAdapter.setChargeState(maxChargeLevel,blackVin);
             bleAdapter.chargeStart(blackVin);
         }
     }
@@ -59,9 +68,11 @@ public class TeslaWallCharger implements IChargePoint {
         if(isWhiteCharging()){
             log.info("Stopping charge of white!");
             bleAdapter.chargeStop(whiteVin);
+            bleAdapter.setChargeState(minChargeLevel,whiteVin);
         }else if(isBlackCharging()){
             log.info("Stopping charge of Black!");
             bleAdapter.chargeStart(blackVin);
+            bleAdapter.setChargeState(minChargeLevel,blackVin);
         }
     }
 
@@ -103,10 +114,12 @@ public class TeslaWallCharger implements IChargePoint {
     }
 
     private boolean isBlackCharging(){
-        return false;
+        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
+        return teslaProxyResponse.isActivelyCharging();
     }
 
     private boolean isWhiteCharging(){
-        return false;
+        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
+        return teslaProxyResponse.isActivelyCharging();
     }
 }

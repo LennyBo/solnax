@@ -29,7 +29,7 @@ public class VehicleApiResponse {
                 );
     }
 
-    public boolean isaActivelyCharging(){
+    public boolean isActivelyCharging(){
         return isChargeStateSet() &&
                 "Charging".equals(response.getResponse().getCharge_state().getCharging_state());
     }

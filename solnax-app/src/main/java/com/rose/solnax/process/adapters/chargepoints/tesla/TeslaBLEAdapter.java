@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -61,7 +62,20 @@ public class TeslaBLEAdapter {
         );
     }
 
-    @Cacheable(value = "tesla-ble",key = "'latest'")
+    public VehicleApiResponse setChargeState(Integer chargeLevel,String vin){
+        return retryTemplate.execute(context ->
+                restClient.post()
+                        .uri("/api/1/vehicles/" + vin + "/command/set_charge_limit")
+                        .body(Map.of("percent", chargeLevel))
+                        .retrieve()
+                        .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                            throw new IOException("Server error : " + res.getStatusCode());
+                        })
+                        .body(VehicleApiResponse.class)
+        );
+    }
+
+    @Cacheable(value = "tesla-ble", key = "#p0")
     public VehicleApiResponse vehicle_data(String vin){
         return retryTemplate.execute(context ->
                 {

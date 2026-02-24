@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface PowerLogRepository extends JpaRepository<PowerLog, LocalDateTime> {
 
-    List<PowerLog> findByTimeGreaterThanOrderByTime(LocalDateTime time);
+    List<PowerLog> findByTimeGreaterThanOrderByTimeDesc(LocalDateTime time);
 
     List<PowerLog> findByTimeBetweenOrderByTimeAsc(LocalDateTime start,LocalDateTime stop);
 
