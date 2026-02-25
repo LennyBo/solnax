@@ -80,7 +80,7 @@ public class TeslaBLEAdapter {
         return retryTemplate.execute(context ->
                 {
                     int attempt = context.getRetryCount() + 1;
-                    String path = "/api/1/vehicles/" + vin + "/vehicle_data";
+                    String path = "/api/1/vehicles/" + vin + "/vehicle_data?wakeup=true";
                     log.info(
                             "HTTP call attempt {} | url={}",
                             attempt,
