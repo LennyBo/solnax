@@ -33,7 +33,7 @@ public class JobManager {
 
 
 
-    @Scheduled(cron = "0 */6 6-22 * * *")
+    @Scheduled(cron = "0 1/5 6-22 * * *")
     @Transactional(readOnly = true)
     void optimizePower() {
         PowerLog lastLog = powerLogManager.getLastPowerLog();

@@ -24,14 +24,14 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Value("${tesla-ble.min-charge-level}")
     private Integer minChargeLevel;
-    
+
 
     String connectedCar = null;
     LocalDateTime lastCheckTime = null;
 
     private final TeslaBLEAdapter bleAdapter;
 
-    public TeslaWallCharger(TeslaBLEAdapter bleAdapter){
+    public TeslaWallCharger(TeslaBLEAdapter bleAdapter) {
         this.bleAdapter = bleAdapter;
     }
 
@@ -48,31 +48,31 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public void startCharge() {
-        if(!isChargeable()){
+        if (!isChargeable()) {
             log.info("No car connected to charge");
             return;
         }
-        if(isWhiteChargeable()){
-            log.info("White is ready to charge -> Starting!");
-            bleAdapter.setChargeState(maxChargeLevel,whiteVin);
-            bleAdapter.chargeStart(whiteVin);
-        }else if(isBlackChargeable()){
+        if (isBlackChargeable()) {
             log.info("Black is ready to charge -> Starting!");
-            bleAdapter.setChargeState(maxChargeLevel,blackVin);
+            bleAdapter.setChargeState(maxChargeLevel, blackVin);
             bleAdapter.chargeStart(blackVin);
+        } else if (isWhiteChargeable()) {
+            log.info("White is ready to charge -> Starting!");
+            bleAdapter.setChargeState(maxChargeLevel, whiteVin);
+            bleAdapter.chargeStart(whiteVin);
         }
     }
 
     @Override
     public void stopCharge() {
-        if(isWhiteCharging()){
-            log.info("Stopping charge of white!");
-            bleAdapter.chargeStop(whiteVin);
-            bleAdapter.setChargeState(minChargeLevel,whiteVin);
-        }else if(isBlackCharging()){
+        if (isBlackCharging()) {
             log.info("Stopping charge of Black!");
             bleAdapter.chargeStart(blackVin);
-            bleAdapter.setChargeState(minChargeLevel,blackVin);
+            bleAdapter.setChargeState(minChargeLevel, blackVin);
+        } else if (isWhiteCharging()) {
+            log.info("Stopping charge of white!");
+            bleAdapter.chargeStop(whiteVin);
+            bleAdapter.setChargeState(minChargeLevel, whiteVin);
         }
     }
 
@@ -80,16 +80,16 @@ public class TeslaWallCharger implements IChargePoint {
     public boolean isChargeable() {
         log.info("Checking if a car is ready to charge");
         lastCheckTime = LocalDateTime.now();
-        if(isBlackChargeable()){
+        if (isBlackChargeable()) {
             log.info("Black is connected");
             connectedCar = blackVin;
             return true;
-        }else{
+        } else {
             boolean whiteChargeable = isWhiteChargeable();
-            if(whiteChargeable){
+            if (whiteChargeable) {
                 connectedCar = whiteVin;
                 log.info("White is connected");
-            }else{
+            } else {
                 log.info("No car connected");
                 connectedCar = null;
             }
@@ -98,28 +98,48 @@ public class TeslaWallCharger implements IChargePoint {
     }
 
     @Bean
-    public Object logVins(){
-        log.info("Black: {} White: {}",blackVin,whiteVin);
+    public Object logVins() {
+        log.info("Black: {} White: {}", blackVin, whiteVin);
         return null;
     }
 
-    private boolean isBlackChargeable(){
-        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
-        return teslaProxyResponse.canCharge();
+    private boolean isBlackChargeable() {
+        try {
+            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
+            return teslaProxyResponse.canCharge();
+        } catch (Exception e) {
+            log.warn("Couldn't check if black is chargeable");
+            return false;
+        }
     }
 
-    private boolean isWhiteChargeable(){
-        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
-        return teslaProxyResponse.canCharge();
+    private boolean isWhiteChargeable() {
+        try {
+            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
+            return teslaProxyResponse.canCharge();
+        } catch (Exception e) {
+            log.warn("Couldn't check if white is chargeable");
+            return false;
+        }
     }
 
-    private boolean isBlackCharging(){
-        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
-        return teslaProxyResponse.isActivelyCharging();
+    private boolean isBlackCharging() {
+        try {
+            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
+            return teslaProxyResponse.isActivelyCharging();
+        } catch (Exception e) {
+            log.warn("Couldn't check if black is charging");
+            return false;
+        }
     }
 
-    private boolean isWhiteCharging(){
-        VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
-        return teslaProxyResponse.isActivelyCharging();
+    private boolean isWhiteCharging() {
+        try {
+            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
+            return teslaProxyResponse.isActivelyCharging();
+        } catch (Exception e) {
+            log.warn("Couldn't check if white is charging");
+            return false;
+        }
     }
 }

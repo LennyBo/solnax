@@ -39,7 +39,7 @@ public class PowerLogManager {
 
     @Transactional(readOnly = true)
     public PowerLog getLastPowerLog() {
-        List<PowerLog> logs = powerLogRepository.findByTimeGreaterThanOrderByTimeDesc(LocalDateTime.now().minusHours(3));
+        List<PowerLog> logs = powerLogRepository.findByTimeGreaterThanOrderByTimeDesc(LocalDateTime.now().minusMinutes(5));
         if (!logs.isEmpty()) {
             return logs.get(0);
         }
