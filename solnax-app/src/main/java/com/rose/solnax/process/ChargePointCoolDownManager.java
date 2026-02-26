@@ -27,7 +27,8 @@ public class ChargePointCoolDownManager {
 
     @Transactional
     public void coolDown(String target, CoolDownReason coolDownReason) {
-        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime end = now;
         if(coolDownReason == CoolDownReason.FULL){
             end = LocalDateTime.now().plusHours(6);
         } else if (coolDownReason == CoolDownReason.NOT_CONNECTED) {
@@ -35,6 +36,7 @@ public class ChargePointCoolDownManager {
         }
         log.info("Creating cooldown for {} ending at {} reason {}",target,end,coolDownReason);
         ChargePointCoolDown chargePointCoolDown = ChargePointCoolDown.builder()
+                .time(now)
                 .target(target)
                 .end(end)
                 .reason(coolDownReason)
