@@ -34,7 +34,7 @@ public class JobManager {
 
 
     @Scheduled(cron = "0 1/5 6-22 * * *")
-    @Transactional(readOnly = true)
+    @Transactional
     void optimizePower() {
         PowerLog lastLog = powerLogManager.getLastPowerLog();
         if (lastLog == null) {

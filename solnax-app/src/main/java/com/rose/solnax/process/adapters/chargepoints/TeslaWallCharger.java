@@ -131,10 +131,10 @@ public class TeslaWallCharger implements IChargePoint {
         try {
             VehicleApiResponse response = bleAdapter.vehicle_data(vin);
 
-            if (!response.isConnected()) {
-                chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
-            } else if (response.isBatteryFull()) {
+            if (response.isBatteryFull()) {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.FULL);
+            } else if (!response.isConnected()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
             }
 
             return response.canCharge();
