@@ -49,7 +49,7 @@ tesla-ble:
   host: http://192.168.0.90:8080
   white: VINWHITE
   black: VINBLACK
-  max-charge-level: 90 #%
+  max-charge-level: 80 #%
   min-charge-level: 60 #%
 
 TWCManager:
