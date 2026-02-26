@@ -45,6 +45,11 @@ public class VehicleApiResponse {
                 response.getResponse().getCharge_state() != null;
     }
 
+    public boolean isBatteryFull() {
+        return isChargeStateSet() &&
+                chargeState().battery_level >= 79;
+    }
+
     // ==================================================
     @Getter
     @Builder

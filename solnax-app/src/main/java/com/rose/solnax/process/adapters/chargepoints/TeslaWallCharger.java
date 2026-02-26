@@ -1,13 +1,17 @@
 package com.rose.solnax.process.adapters.chargepoints;
 
+import com.rose.solnax.model.entity.ChargePointCoolDown;
+import com.rose.solnax.model.entity.enums.CoolDownReason;
+import com.rose.solnax.process.ChargePointCoolDownManager;
 import com.rose.solnax.process.adapters.chargepoints.tesla.TeslaBLEAdapter;
 import com.rose.solnax.process.adapters.chargepoints.tesla.model.VehicleApiResponse;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -26,12 +30,14 @@ public class TeslaWallCharger implements IChargePoint {
     private Integer minChargeLevel;
 
 
+    private final ChargePointCoolDownManager chargePointCoolDownManager;
     String connectedCar = null;
     LocalDateTime lastCheckTime = null;
 
     private final TeslaBLEAdapter bleAdapter;
 
-    public TeslaWallCharger(TeslaBLEAdapter bleAdapter) {
+    public TeslaWallCharger(ChargePointCoolDownManager chargePointCoolDownManager1, TeslaBLEAdapter bleAdapter) {
+        this.chargePointCoolDownManager = chargePointCoolDownManager1;
         this.bleAdapter = bleAdapter;
     }
 
@@ -78,9 +84,16 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public boolean isChargeable() {
+        List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
+        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
+        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        if(isBlackCoolDown && isWhiteCoolDown){
+            log.info("Both cars in cool down period");
+            return false;
+        }
         log.info("Checking if a car is ready to charge");
         lastCheckTime = LocalDateTime.now();
-        if (isBlackChargeable()) {
+        if (!isBlackCoolDown && isBlackChargeable()) {
             log.info("Black is connected");
             connectedCar = blackVin;
             return true;
@@ -97,49 +110,49 @@ public class TeslaWallCharger implements IChargePoint {
         }
     }
 
-    @Bean
-    public Object logVins() {
-        log.info("Black: {} White: {}", blackVin, whiteVin);
-        return null;
-    }
-
     private boolean isBlackChargeable() {
-        try {
-            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
-            return teslaProxyResponse.canCharge();
-        } catch (Exception e) {
-            log.warn("Couldn't check if black is chargeable");
-            return false;
-        }
+        return isChargeable(blackVin, blackVin);
     }
 
     private boolean isWhiteChargeable() {
-        try {
-            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
-            return teslaProxyResponse.canCharge();
-        } catch (Exception e) {
-            log.warn("Couldn't check if white is chargeable");
-            return false;
-        }
+        return isChargeable(whiteVin, whiteVin);
     }
 
     private boolean isBlackCharging() {
+        return isCharging(blackVin, blackVin);
+    }
+
+    private boolean isWhiteCharging() {
+        return isCharging(whiteVin, whiteVin);
+    }
+
+
+    private boolean isChargeable(String vin, String label) {
         try {
-            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(blackVin);
-            return teslaProxyResponse.isActivelyCharging();
+            VehicleApiResponse response = bleAdapter.vehicle_data(vin);
+
+            if (!response.isConnected()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
+            } else if (response.isBatteryFull()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.FULL);
+            }
+
+            return response.canCharge();
+
         } catch (Exception e) {
-            log.warn("Couldn't check if black is charging");
+            log.warn("Couldn't check if {} is chargeable", label);
             return false;
         }
     }
 
-    private boolean isWhiteCharging() {
+    private boolean isCharging(String vin, String label) {
         try {
-            VehicleApiResponse teslaProxyResponse = bleAdapter.vehicle_data(whiteVin);
-            return teslaProxyResponse.isActivelyCharging();
+            VehicleApiResponse response = bleAdapter.vehicle_data(vin);
+            return response.isActivelyCharging();
         } catch (Exception e) {
-            log.warn("Couldn't check if white is charging");
+            log.warn("Couldn't check if {} is charging", label);
             return false;
         }
     }
+
 }
