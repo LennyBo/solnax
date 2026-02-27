@@ -115,7 +115,7 @@ public class TeslaWallCharger implements IChargePoint {
             log.info("Black is connected");
             connectedCar = blackVin;
             return true;
-        } else {
+        } else if (!isWhiteCoolDown) {
             boolean whiteChargeable = isWhiteChargeable();
             if (whiteChargeable) {
                 connectedCar = whiteVin;
@@ -126,6 +126,7 @@ public class TeslaWallCharger implements IChargePoint {
             }
             return whiteChargeable;
         }
+        return false;
     }
 
     private boolean isBlackChargeable() {
