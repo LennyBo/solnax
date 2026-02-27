@@ -88,7 +88,7 @@ public class TeslaWallCharger implements IChargePoint {
             bleAdapter.setChargeState(minChargeLevel, blackVin);
         } else if (isWhiteCharging()) {
             if(isWhiteLow()){
-                log.info("Battery of black is too low. Letting charge continue");
+                log.info("Battery of white is too low. Letting charge continue");
                 bleAdapter.setChargeState(minChargeLevel,whiteVin);
                 return;
             }
