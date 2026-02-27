@@ -50,6 +50,11 @@ public class VehicleApiResponse {
                 chargeState().battery_level >= 79;
     }
 
+    public boolean isBatteryLow() {
+        return isChargeStateSet() &&
+                chargeState().battery_level < 60;
+    }
+
     // ==================================================
     @Getter
     @Builder

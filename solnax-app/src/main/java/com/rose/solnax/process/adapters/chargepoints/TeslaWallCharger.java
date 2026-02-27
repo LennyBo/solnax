@@ -5,7 +5,6 @@ import com.rose.solnax.model.entity.enums.CoolDownReason;
 import com.rose.solnax.process.ChargePointCoolDownManager;
 import com.rose.solnax.process.adapters.chargepoints.tesla.TeslaBLEAdapter;
 import com.rose.solnax.process.adapters.chargepoints.tesla.model.VehicleApiResponse;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -71,16 +70,35 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public void stopCharge() {
+        List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
+        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
+        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        if(isBlackCoolDown && isWhiteCoolDown){
+            log.info("Both cars in cool down period");
+            return;
+        }
         if (isBlackCharging()) {
+            if(isBlackLow()){
+                log.info("Battery of black is too low. Letting charge continue");
+                bleAdapter.setChargeState(minChargeLevel,blackVin);
+                return;
+            }
             log.info("Stopping charge of Black!");
             bleAdapter.chargeStart(blackVin);
             bleAdapter.setChargeState(minChargeLevel, blackVin);
         } else if (isWhiteCharging()) {
+            if(isWhiteLow()){
+                log.info("Battery of black is too low. Letting charge continue");
+                bleAdapter.setChargeState(minChargeLevel,whiteVin);
+                return;
+            }
             log.info("Stopping charge of white!");
             bleAdapter.chargeStop(whiteVin);
             bleAdapter.setChargeState(minChargeLevel, whiteVin);
         }
     }
+
+
 
     @Override
     public boolean isChargeable() {
@@ -111,23 +129,30 @@ public class TeslaWallCharger implements IChargePoint {
     }
 
     private boolean isBlackChargeable() {
-        return isChargeable(blackVin, blackVin);
+        return isChargeable(blackVin);
     }
 
     private boolean isWhiteChargeable() {
-        return isChargeable(whiteVin, whiteVin);
+        return isChargeable(whiteVin);
     }
 
     private boolean isBlackCharging() {
-        return isCharging(blackVin, blackVin);
+        return isCharging(blackVin);
     }
 
     private boolean isWhiteCharging() {
-        return isCharging(whiteVin, whiteVin);
+        return isCharging(whiteVin);
     }
 
+    private boolean isBlackLow() {
+        return isLowBattery(blackVin);
+    }
 
-    private boolean isChargeable(String vin, String label) {
+    private boolean isWhiteLow() {
+        return isLowBattery(whiteVin);
+    }
+
+    private boolean isChargeable(String vin) {
         try {
             VehicleApiResponse response = bleAdapter.vehicle_data(vin);
 
@@ -140,17 +165,32 @@ public class TeslaWallCharger implements IChargePoint {
             return response.canCharge();
 
         } catch (Exception e) {
-            log.warn("Couldn't check if {} is chargeable", label);
+            log.warn("Couldn't check if {} is chargeable", vin);
             return false;
         }
     }
 
-    private boolean isCharging(String vin, String label) {
+    private boolean isCharging(String vin) {
         try {
             VehicleApiResponse response = bleAdapter.vehicle_data(vin);
+            if (!response.isConnected()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
+            } else if (response.isBatteryLow()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
+            }
             return response.isActivelyCharging();
         } catch (Exception e) {
-            log.warn("Couldn't check if {} is charging", label);
+            log.warn("Couldn't check if {} is charging", vin);
+            return false;
+        }
+    }
+
+    private boolean isLowBattery(String vin) {
+        try {
+            VehicleApiResponse response = bleAdapter.vehicle_data(vin);
+            return response.isBatteryLow();
+        } catch (Exception e) {
+            log.warn("Couldn't check if {} is low battery", vin);
             return false;
         }
     }

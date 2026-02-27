@@ -33,6 +33,8 @@ public class ChargePointCoolDownManager {
             end = LocalDateTime.now().plusHours(6);
         } else if (coolDownReason == CoolDownReason.NOT_CONNECTED) {
             end = LocalDateTime.now().plusMinutes(60);
+        } else if (coolDownReason == CoolDownReason.LOW_BATTERY) {
+            end = LocalDateTime.now().plusMinutes(30);
         }
         log.info("Creating cooldown for {} ending at {} reason {}",target,end,coolDownReason);
         ChargePointCoolDown chargePointCoolDown = ChargePointCoolDown.builder()
