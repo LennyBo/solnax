@@ -77,7 +77,7 @@ public class TeslaWallCharger implements IChargePoint {
             log.info("Both cars in cool down period");
             return;
         }
-        if (isBlackCharging()) {
+        if (!isBlackCoolDown && isBlackCharging()) {
             if(isBlackLow()){
                 log.info("Battery of black is too low. Letting charge continue");
                 bleAdapter.setChargeState(minChargeLevel,blackVin);
@@ -86,7 +86,7 @@ public class TeslaWallCharger implements IChargePoint {
             log.info("Stopping charge of Black!");
             bleAdapter.chargeStart(blackVin);
             bleAdapter.setChargeState(minChargeLevel, blackVin);
-        } else if (isWhiteCharging()) {
+        } else if (!isWhiteCoolDown && isWhiteCharging()) {
             if(isWhiteLow()){
                 log.info("Battery of white is too low. Letting charge continue");
                 bleAdapter.setChargeState(minChargeLevel,whiteVin);
