@@ -74,7 +74,7 @@ public class PowerLogManager {
                         // Data exists for this slot
                         Integer house = actual.getSolarIn() + actual.getHouseOut() - actual.getChargerOut();
                         paddedLogs.getSolarIn().add(actual.getSolarIn());
-                        paddedLogs.getHouse().add(house);
+                        paddedLogs.getHouse().add(house < 0 ? 0 : house);
                         paddedLogs.getCharger().add(actual.getChargerOut());
                     }
                 });

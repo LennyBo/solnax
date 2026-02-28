@@ -14,8 +14,8 @@ export class PowerService {
   constructor(private http: HttpClient) { }
 
 
-  getPower(): Observable<PowerLogs> {
-    return this.http.get<PowerLogs>(this.baseUrl);
+  getPower(onDate: string) {
+    return this.http.get<PowerLogs>(`/api/power?onDate=${onDate}`);
   }
 
   getInstantPower(): Observable<InstantPower>{

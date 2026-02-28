@@ -1,7 +1,31 @@
-<div class="chart-container">
-  <canvas baseChart
-          [data]="chartData()"
-          [options]="chartOptions"
-          [type]="'line'">
-  </canvas>
+<div class="chart-wrapper">
+  <div class="chart-header">
+    <button
+      class="nav-btn"
+      (click)="previousDay()"
+      [disabled]="loading()"
+      aria-label="Previous day">
+      ‹
+    </button>
+
+    <div class="date-label">
+      {{ selectedDateLabel() }}
+    </div>
+
+    <button
+      class="nav-btn"
+      (click)="nextDay()"
+      [disabled]="isToday() || loading()"
+      aria-label="Next day">
+      ›
+    </button>
+  </div>
+
+  <div class="chart-container">
+    <canvas baseChart
+            [data]="chartData()"
+            [options]="chartOptions"
+            [type]="'line'">
+    </canvas>
+  </div>
 </div>

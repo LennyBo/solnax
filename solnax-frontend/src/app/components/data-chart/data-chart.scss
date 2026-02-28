@@ -1,3 +1,42 @@
+.chart-wrapper {
+  width: 100%;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-label {
+  font-weight: 600;
+  min-width: 140px;
+  text-align: center;
+}
+
+.nav-btn {
+  border: none;
+  background: #e0e0e0;
+  color: #333;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #cfcfcf;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .chart-container {
   width: 100%;
   height: 400px;

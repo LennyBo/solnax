@@ -1,8 +1,8 @@
-import { Component, DestroyRef, OnInit, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, signal, computed } from '@angular/core';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { PowerService } from '../../service/power.service';
-import { switchMap, timer } from 'rxjs';
+import { switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PowerLogs } from '../../model/power-logs';
 
@@ -20,6 +20,11 @@ export class DataChart implements OnInit {
     private destroyRef: DestroyRef
   ) {}
 
+  /** STATE */
+  selectedDate = signal<Date>(new Date());
+  loading = signal(false);
+
+  /** CHART DATA */
   chartData = signal<ChartData<'line'>>({
     labels: [],
     datasets: [
@@ -65,12 +70,57 @@ export class DataChart implements OnInit {
     }
   };
 
+  /** COMPUTED */
+  selectedDateLabel = computed(() =>
+    this.selectedDate().toLocaleDateString(undefined, {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+  );
+
+  isToday = computed(() => {
+    const today = new Date();
+    const d = this.selectedDate();
+    return d.toDateString() === today.toDateString();
+  });
+
+  /** LIFECYCLE */
   ngOnInit() {
-    timer(0, 30000).pipe(
-      switchMap(() => this.powerService.getPower()),
+    this.loadData();
+  }
+
+  /** NAVIGATION */
+  previousDay() {
+    const d = new Date(this.selectedDate());
+    d.setDate(d.getDate() - 1);
+    this.selectedDate.set(d);
+    this.loadData();
+  }
+
+  nextDay() {
+    if (this.isToday()) return;
+    const d = new Date(this.selectedDate());
+    d.setDate(d.getDate() + 1);
+    this.selectedDate.set(d);
+    this.loadData();
+  }
+
+  /** DATA LOADING */
+  private loadData() {
+    this.loading.set(true);
+
+    const dateParam = this.selectedDate().toISOString().split('T')[0];
+
+    this.powerService.getPower(dateParam).pipe(
       takeUntilDestroyed(this.destroyRef)
-    ).subscribe(data => {
-      this.updateChart(data);
+    ).subscribe({
+      next: data => {
+        this.updateChart(data);
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false)
     });
   }
 
