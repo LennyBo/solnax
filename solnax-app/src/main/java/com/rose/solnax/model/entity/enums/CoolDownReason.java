@@ -5,5 +5,5 @@ public enum CoolDownReason {
     LOW_BATTERY,
     NOT_CONNECTED,
     UNABLE_TO_CHARGE, //No response
-    NO_RESPONSE
+    MANUAL, NO_RESPONSE
 }

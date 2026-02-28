@@ -7,6 +7,7 @@ import {switchMap, timer} from "rxjs";
 import {takeUntilDestroyed} from "@angular/core/rxjs-interop";
 import {InstantPower} from "../../model/instant-power";
 import {DataChart} from "../data-chart/data-chart";
+import {CoolDownControl} from "../cool-down-control/cool-down-control";
 
 @Component({
   selector: 'app-house-graphic',
@@ -14,7 +15,8 @@ import {DataChart} from "../data-chart/data-chart";
     PowerArrow,
     NgForOf,
     NgOptimizedImage,
-    DataChart
+    DataChart,
+    CoolDownControl
   ],
   templateUrl: './house-graphic.html',
   styleUrl: './house-graphic.scss',

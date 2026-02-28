@@ -1,0 +1,29 @@
+<div class="cooldown-card" [class.active]="active()">
+  <div class="status">
+    <span class="indicator"></span>
+    <span class="label">
+      {{ active() ? 'Manual Cooldown Active' : 'No Manual Cooldown' }}
+    </span>
+  </div>
+
+  <div class="actions">
+    <button
+      class="btn primary"
+      (click)="createCoolDown()"
+      [disabled]="active() || loading()">
+      Activate
+    </button>
+
+    <button
+      class="btn danger"
+      (click)="clearCoolDown()"
+      [disabled]="loading()">
+      Clear
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" *ngIf="toast()" [class]="toast()?.type">
+  {{ toast()?.message }}
+</div>
