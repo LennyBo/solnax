@@ -22,8 +22,7 @@ public class JobManager {
     private static final int CHARGER_MIN_POWER = 3000; //If charger is above this level we assume already charging
 
 
-    //@Scheduled(cron = "0 */5 * * * *")
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(cron = "0 */5 * * * *")
     void logPower(){
         PowerLog powerLog = powerLogManager.logPower();
         log.info("Logged power log: {}", powerLog);
@@ -31,7 +30,7 @@ public class JobManager {
 
 
 
-    @Scheduled(cron = "0 1/5 6-22 * * *")
+    //@Scheduled(cron = "0 1/5 6-22 * * *")
     @Transactional
     void optimizePower() {
         PowerLog lastLog = powerLogManager.getLastPowerLog();

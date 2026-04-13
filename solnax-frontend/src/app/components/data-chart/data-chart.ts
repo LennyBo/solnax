@@ -50,6 +50,13 @@ export class DataChart implements OnInit {
         borderColor: '#38d9b9',
         tension: 0.3,
         stack: 'load'
+      },
+      {
+        data: [],
+        label: 'Kitchen',
+        borderColor: '#08d909',
+        tension: 0.3,
+        stack: 'load'
       }
     ]
   });
@@ -128,9 +135,11 @@ export class DataChart implements OnInit {
     this.chartData.set({
       labels: newData.times,
       datasets: [
-        { ...this.chartData().datasets[0], data: newData.solarIn },
+        { ...this.chartData().datasets[0], data: newData.solar },
         { ...this.chartData().datasets[1], data: newData.house },
-        { ...this.chartData().datasets[2], data: newData.charger }
+        { ...this.chartData().datasets[2], data: newData.charger },
+        { ...this.chartData().datasets[3], data: newData.kitchen }
+
       ]
     });
   }
