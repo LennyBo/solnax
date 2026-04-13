@@ -22,32 +22,34 @@ public class PowerLog {
     @Id
     private LocalDateTime time;
 
-    @Column(name="solar_in")
-    private Integer solarIn;
+    @Column(name="solar")
+    private Integer solar;
 
-    @Column(name="house_out")
-    private Integer houseOut;
+    @Column(name="house")
+    private Integer house;
 
-    @Column(name="heat_out")
-    private Integer heatOut;
+    @Column(name="heater")
+    private Integer heater;
 
-    @Column(name="charger_out")
-    private Integer chargerOut;
+    @Column(name="charger")
+    private Integer charger;
 
-    @Column(name="power_wall")
-    private Integer powerWall;
+    @Column(name="kitchen")
+    private Integer kitchen;
+
+
 
     @Override
     public String toString() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
         return String.format(
-                "[%s] solar_in=%dw, house_out=%dw, heat_out=%dw, charger_out=%dw, power_wall=%dw",
+                "[%s] solar=%dw, house=%dw, heater=%dw, charger=%dw, kitchen=%dw",
                 time.format(fmt),
-                solarIn,
-                houseOut,
-                heatOut,
-                chargerOut,
-                powerWall
+                solar,
+                house,
+                heater,
+                charger,
+                kitchen
         );
     }
 }

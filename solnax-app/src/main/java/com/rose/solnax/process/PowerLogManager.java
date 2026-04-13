@@ -6,8 +6,9 @@ import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.model.repository.PowerLogRepository;
 import com.rose.solnax.process.adapters.chargepoints.tesla.TWCManagerAdapter;
-import com.rose.solnax.process.adapters.chargepoints.tesla.model.TeslaWallConnectorStatus;
 import com.rose.solnax.process.adapters.meters.IPowerMeter;
+import com.rose.solnax.process.adapters.meters.shelly.ShellyEm3Client;
+import com.rose.solnax.process.adapters.meters.shelly.ShellyEm3Registry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,6 +31,7 @@ public class PowerLogManager {
     private final IPowerMeter inverter;
     private final TWCManagerAdapter twcManagerAdapter;
     public final PowerLogRepository powerLogRepository;
+    private final ShellyEm3Registry registry;
 
     @Transactional
     public PowerLog save(PowerLog powerLog) {
@@ -72,10 +74,10 @@ public class PowerLogManager {
                     PowerLog actual = logMap.get(currentTime);
                     if (actual != null) {
                         // Data exists for this slot
-                        Integer house = actual.getSolarIn() + actual.getHouseOut() - actual.getChargerOut();
-                        paddedLogs.getSolarIn().add(actual.getSolarIn());
+                        Integer house = actual.getSolar() + actual.getHouse() - actual.getCharger();
+                        paddedLogs.getSolar().add(actual.getSolar());
                         paddedLogs.getHouse().add(house < 0 ? 0 : house);
-                        paddedLogs.getCharger().add(actual.getChargerOut());
+                        paddedLogs.getCharger().add(actual.getCharger());
                     }
                 });
 
@@ -91,10 +93,10 @@ public class PowerLogManager {
     public InstantPower getInstantPower() {
         PowerLog powerLogCached = getPowerLog();
         return InstantPower.builder()
-                .solar(powerLogCached.getSolarIn() / 1000.0)
-                .house(powerLogCached.getHouseOut() / 1000.0 * -1)
-                .heat(powerLogCached.getHeatOut() / 1000.0)
-                .evCharger(powerLogCached.getChargerOut() / 1000.0)
+                .solar(powerLogCached.getSolar() / 1000.0)
+                .house(powerLogCached.getHouse() / 1000.0 * -1)
+                .heat(powerLogCached.getHeater() / 1000.0)
+                .evCharger(powerLogCached.getCharger() / 1000.0)
                 .build();
     }
 
@@ -103,13 +105,19 @@ public class PowerLogManager {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
         double chargeNowAmps = 0.0;
+        Map<String, ShellyEm3Client> all = registry.getAll();
 
+        double heater = all.get("heater").getTotalActivePowerW() * -1;
+        double charger = all.get("charger").getTotalActivePowerW();
+        //double sauna = all.get("sauna").getTotalActivePowerW();
+        double kitchen = all.get("kitchen").getTotalActivePowerW() * -1;
         return PowerLog.builder()
                 .time(LocalDateTime.now())
-                .solarIn(solarIn)
-                .houseOut(houseOut)
-                .chargerOut((int) (690 * chargeNowAmps))
-                .heatOut(0)
+                .solar(solarIn)
+                .house(houseOut)
+                .charger((int) charger)
+                .heater((int) heater)
+                .kitchen((int) kitchen)
                 .build();
     }
 

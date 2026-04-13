@@ -54,3 +54,19 @@ tesla-ble:
 
 TWCManager:
   host: http://192.168.0.89
+
+shelly:
+  em3:
+    # Shared defaults – can be overridden per device
+    connect-timeout: 3s
+    read-timeout: 5s
+
+    devices:
+      heater:
+        host: 192.168.0.50
+      kitchen:
+        host: 192.168.0.51
+      charger:
+        host: 192.168.0.52
+      sauna:
+        host: 192.168.0.53

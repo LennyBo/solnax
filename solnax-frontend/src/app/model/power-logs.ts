@@ -2,7 +2,8 @@
 
 export interface PowerLogs{
   times:string[];
-  solarIn:number[];
+  solar:number[];
   house:number[];
   charger:number[];
+  kitchen:number[];
 }

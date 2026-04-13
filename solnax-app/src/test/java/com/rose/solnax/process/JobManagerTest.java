@@ -28,8 +28,8 @@ class JobManagerTest {
 
     private PowerLog log(int houseOut, int chargerOut) {
         PowerLog log = new PowerLog();
-        log.setHouseOut(houseOut);
-        log.setChargerOut(chargerOut);
+        log.setHouse(houseOut);
+        log.setCharger(chargerOut);
         return log;
     }
 

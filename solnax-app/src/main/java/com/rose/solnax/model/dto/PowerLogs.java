@@ -12,15 +12,17 @@ public class PowerLogs {
 
     public PowerLogs(){
         times = new ArrayList<>();
-        solarIn = new ArrayList<>();
+        solar = new ArrayList<>();
         house = new ArrayList<>();
         charger = new ArrayList<>();
+        kitchen = new ArrayList<>();
     }
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "HH:mm")
     List<LocalTime> times;
-    List<Integer> solarIn;
+    List<Integer> solar;
     List<Integer> house;
     List<Integer> charger;
+    List<Integer> kitchen;
 
 }

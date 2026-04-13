@@ -2,14 +2,11 @@ package com.rose.solnax.process;
 
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.process.adapters.chargepoints.IChargePoint;
-import com.rose.solnax.process.adapters.meters.IPowerMeter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @Slf4j
@@ -25,7 +22,8 @@ public class JobManager {
     private static final int CHARGER_MIN_POWER = 3000; //If charger is above this level we assume already charging
 
 
-    @Scheduled(cron = "0 */5 * * * *")
+    //@Scheduled(cron = "0 */5 * * * *")
+    @Scheduled(fixedRate = 10000)
     void logPower(){
         PowerLog powerLog = powerLogManager.logPower();
         log.info("Logged power log: {}", powerLog);
@@ -42,9 +40,9 @@ public class JobManager {
             return;
         }
 
-        boolean isCharging = lastLog.getChargerOut() >= CHARGER_MIN_POWER;
-        boolean isImporting = lastLog.getHouseOut() > IMPORT_THRESHOLD;
-        boolean isExporting = lastLog.getHouseOut() < EXPORT_THRESHOLD;
+        boolean isCharging = lastLog.getCharger() >= CHARGER_MIN_POWER;
+        boolean isImporting = lastLog.getHouse() > IMPORT_THRESHOLD;
+        boolean isExporting = lastLog.getHouse() < EXPORT_THRESHOLD;
 
         log.info("Checking for optimizations");
 
