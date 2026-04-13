@@ -9,5 +9,5 @@ public class InstantPower {
     Double solar;
     Double house;
     Double heat;
-    Double evCharger;
+    Double charger;
 }

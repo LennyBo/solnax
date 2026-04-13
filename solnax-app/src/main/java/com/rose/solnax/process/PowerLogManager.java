@@ -29,14 +29,8 @@ import java.util.stream.Stream;
 public class PowerLogManager {
 
     private final IPowerMeter inverter;
-    private final TWCManagerAdapter twcManagerAdapter;
     public final PowerLogRepository powerLogRepository;
     private final ShellyEm3Registry registry;
-
-    @Transactional
-    public PowerLog save(PowerLog powerLog) {
-        return powerLogRepository.save(powerLog);
-    }
 
 
     @Transactional(readOnly = true)
@@ -74,10 +68,11 @@ public class PowerLogManager {
                     PowerLog actual = logMap.get(currentTime);
                     if (actual != null) {
                         // Data exists for this slot
-                        Integer house = actual.getSolar() + actual.getHouse() - actual.getCharger();
+                        int house = actual.getSolar() + actual.getHouse() - actual.getCharger() - actual.getKitchen();
                         paddedLogs.getSolar().add(actual.getSolar());
-                        paddedLogs.getHouse().add(house < 0 ? 0 : house);
+                        paddedLogs.getHouse().add(Math.max(house, 0));
                         paddedLogs.getCharger().add(actual.getCharger());
+                        paddedLogs.getKitchen().add(actual.getKitchen());
                     }
                 });
 
@@ -96,7 +91,7 @@ public class PowerLogManager {
                 .solar(powerLogCached.getSolar() / 1000.0)
                 .house(powerLogCached.getHouse() / 1000.0 * -1)
                 .heat(powerLogCached.getHeater() / 1000.0)
-                .evCharger(powerLogCached.getCharger() / 1000.0)
+                .charger(powerLogCached.getCharger() / 1000.0)
                 .build();
     }
 
@@ -104,7 +99,6 @@ public class PowerLogManager {
     public PowerLog getPowerLog() {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
-        double chargeNowAmps = 0.0;
         Map<String, ShellyEm3Client> all = registry.getAll();
 
         double heater = all.get("heater").getTotalActivePowerW() * -1;
