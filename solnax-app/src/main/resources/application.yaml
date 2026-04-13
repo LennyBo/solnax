@@ -41,8 +41,8 @@ management:
 
 solaredge:
   modbus:
-    host: 192.168.0.89
-    port: 1503
+    host: 192.168.0.90
+    port: 1502
     slaveId: 1
     connectTimeoutMs: 3000
 tesla-ble:

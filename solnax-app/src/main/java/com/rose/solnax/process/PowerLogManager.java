@@ -103,12 +103,6 @@ public class PowerLogManager {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
         double chargeNowAmps = 0.0;
-        try {
-            TeslaWallConnectorStatus twcStatus = twcManagerAdapter.getTWCStatus();
-            chargeNowAmps = Double.parseDouble(twcStatus.getTwc().get(0).getTwcChargeSpeed());
-        }catch (Exception e){
-            log.warn("Can't get TWCStatus");
-        }
 
         return PowerLog.builder()
                 .time(LocalDateTime.now())
