@@ -53,6 +53,13 @@ export class DataChart implements OnInit {
       },
       {
         data: [],
+        label: 'Heater',
+        borderColor: '#38ffb9',
+        tension: 0.3,
+        stack: 'load'
+      },
+      {
+        data: [],
         label: 'Kitchen',
         borderColor: '#08d909',
         tension: 0.3,
@@ -138,8 +145,8 @@ export class DataChart implements OnInit {
         { ...this.chartData().datasets[0], data: newData.solar },
         { ...this.chartData().datasets[1], data: newData.house },
         { ...this.chartData().datasets[2], data: newData.charger },
-        { ...this.chartData().datasets[3], data: newData.kitchen }
-
+        { ...this.chartData().datasets[3], data: newData.heater },
+        { ...this.chartData().datasets[4], data: newData.kitchen }
       ]
     });
   }
