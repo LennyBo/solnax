@@ -15,6 +15,7 @@ public class PowerLogs {
         solar = new ArrayList<>();
         house = new ArrayList<>();
         charger = new ArrayList<>();
+        heater = new ArrayList<>();
         kitchen = new ArrayList<>();
     }
 
@@ -23,6 +24,7 @@ public class PowerLogs {
     List<Integer> solar;
     List<Integer> house;
     List<Integer> charger;
+    List<Integer> heater;
     List<Integer> kitchen;
 
 }
