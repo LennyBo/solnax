@@ -72,7 +72,7 @@ public class PowerLogManager {
                         paddedLogs.getSolar().add(actual.getSolar());
                         paddedLogs.getHouse().add(Math.max(house, 0));
                         paddedLogs.getCharger().add(actual.getCharger());
-                        padderLogs.getHeater().add(actual.getHeater());
+                        paddedLogs.getHeater().add(actual.getHeater());
                         paddedLogs.getKitchen().add(actual.getKitchen());
                 });
 
