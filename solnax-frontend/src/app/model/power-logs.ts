@@ -5,5 +5,6 @@ export interface PowerLogs{
   solar:number[];
   house:number[];
   charger:number[];
+  heater:number[];
   kitchen:number[];
 }
