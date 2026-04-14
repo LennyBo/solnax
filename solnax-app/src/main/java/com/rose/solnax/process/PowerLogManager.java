@@ -74,6 +74,7 @@ public class PowerLogManager {
                         paddedLogs.getCharger().add(actual.getCharger());
                         paddedLogs.getHeater().add(actual.getHeater());
                         paddedLogs.getKitchen().add(actual.getKitchen());
+                    }
                 });
 
         return paddedLogs;
