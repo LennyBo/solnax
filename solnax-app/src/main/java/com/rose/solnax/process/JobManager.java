@@ -62,7 +62,7 @@ public class JobManager {
         int availablePower = currentChargerDraw - gridExchange - powerBuffer;
 
         boolean isCharging = chargePoint.isCurrentlyCharging();
-        long minPower = chargePoint.getMinPower();
+        long minPower = chargePoint.getMinPower() - 1300; //1300W is just a buffer where it's not worth stopping if we use that much
 
         log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}",
                 gridExchange, currentChargerDraw, availablePower, minPower, isCharging);

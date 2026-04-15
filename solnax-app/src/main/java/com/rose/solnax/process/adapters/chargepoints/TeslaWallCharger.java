@@ -236,6 +236,8 @@ public class TeslaWallCharger implements IChargePoint {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.FULL);
             } else if (!response.isConnected()) {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
+            } else if(response.isBatteryLow() && response.isActivelyCharging()) {
+                chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
             }
 
             return response;
