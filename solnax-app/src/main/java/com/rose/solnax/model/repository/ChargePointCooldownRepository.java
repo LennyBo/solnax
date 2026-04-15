@@ -14,6 +14,8 @@ public interface ChargePointCooldownRepository extends JpaRepository<ChargePoint
     List<ChargePointCoolDown> findAllByEndAfter(LocalDateTime localDateTime);
     boolean existsByEndAfterAndReason(LocalDateTime localDateTime, CoolDownReason reason);
 
+    int countByTargetAndReasonAndTimeAfter(String target, CoolDownReason reason, LocalDateTime since);
+
     @Modifying
     int deleteAllByEndAfter(LocalDateTime localDateTime);
 }

@@ -23,6 +23,16 @@
   </div>
 </div>
 
+<!-- Active Cooldowns Details -->
+<div class="cooldown-details" *ngIf="cooldowns().length > 0">
+  <h4>Active Cooldowns</h4>
+  <div class="cooldown-item" *ngFor="let cd of cooldowns()">
+    <span class="cd-target">{{ cd.target }}</span>
+    <span class="cd-reason">{{ formatReason(cd.reason) }}</span>
+    <span class="cd-remaining">{{ cd.minutesRemaining }} min left</span>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" *ngIf="toast()" [class]="toast()?.type">
   {{ toast()?.message }}

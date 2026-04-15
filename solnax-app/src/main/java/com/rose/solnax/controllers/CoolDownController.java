@@ -1,11 +1,14 @@
 package com.rose.solnax.controllers;
 
+import com.rose.solnax.model.dto.CoolDownStatusDTO;
 import com.rose.solnax.process.ChargePointCoolDownManager;
 import com.rose.solnax.process.exception.CoolDownAlreadyCreated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 
 @RestController
@@ -40,6 +43,18 @@ public class CoolDownController {
         try {
             chargePointCoolDownManager.clearCoolDowns();
             return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/api/cool-down/status")
+    public ResponseEntity<List<CoolDownStatusDTO>> getCoolDownStatus() {
+        try {
+            List<CoolDownStatusDTO> statuses = chargePointCoolDownManager.getActiveCoolDowns().stream()
+                    .map(CoolDownStatusDTO::from)
+                    .toList();
+            return ResponseEntity.ok(statuses);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

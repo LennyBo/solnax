@@ -75,6 +75,20 @@ public class TeslaBLEAdapter {
         );
     }
 
+    public VehicleApiResponse setChargingAmps(int amps, String vin) {
+        log.info("Setting charging amps to {} for VIN {}", amps, vin);
+        return retryTemplate.execute(context ->
+                restClient.post()
+                        .uri("/api/1/vehicles/" + vin + "/command/set_charging_amps")
+                        .body(Map.of("charging_amps", amps))
+                        .retrieve()
+                        .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                            throw new IOException("Server error : " + res.getStatusCode());
+                        })
+                        .body(VehicleApiResponse.class)
+        );
+    }
+
     @Cacheable(value = "tesla-ble", key = "#p0")
     public VehicleApiResponse vehicle_data(String vin){
         return retryTemplate.execute(context ->

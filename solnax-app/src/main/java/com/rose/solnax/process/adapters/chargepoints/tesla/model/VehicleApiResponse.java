@@ -55,6 +55,42 @@ public class VehicleApiResponse {
                 chargeState().battery_level < 60;
     }
 
+    /**
+     * @return the charger voltage, defaulting to 230 if not available
+     */
+    public int getChargerVoltage() {
+        if (!isChargeStateSet() || chargeState().charger_voltage <= 0) {
+            return 230;
+        }
+        return chargeState().charger_voltage;
+    }
+
+    /**
+     * @return the number of charger phases, defaulting to 3 if not available
+     */
+    public int getChargerPhases() {
+        if (!isChargeStateSet() || chargeState().charger_phases <= 0) {
+            return 3;
+        }
+        return chargeState().charger_phases;
+    }
+
+    /**
+     * @return current charge amps the car is set to
+     */
+    public int getChargeAmps() {
+        if (!isChargeStateSet()) return 0;
+        return chargeState().charge_amps;
+    }
+
+    /**
+     * @return the energy added so far in this charge cycle (kWh)
+     */
+    public double getChargeEnergyAdded() {
+        if (!isChargeStateSet()) return 0.0;
+        return chargeState().charge_energy_added;
+    }
+
     // ==================================================
     @Getter
     @Builder

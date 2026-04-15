@@ -1,0 +1,43 @@
+<div class="session-card">
+  <h3>⚡ Recent Charge Sessions</h3>
+
+  <div class="loading" *ngIf="loading()">Loading...</div>
+
+  <div class="empty" *ngIf="!loading() && sessions().length === 0">
+    No charge sessions found
+  </div>
+
+  <div class="session-list" *ngIf="!loading() && sessions().length > 0">
+    <div class="session-item" *ngFor="let session of sessions()" [class]="getStatusClass(session.status)">
+      <div class="session-header">
+        <span class="vin">{{ session.vin }}</span>
+        <span class="status-badge" [class]="getStatusClass(session.status)">
+          {{ session.status }}
+        </span>
+      </div>
+      <div class="session-details">
+        <div class="detail">
+          <span class="label">Started</span>
+          <span class="value">{{ session.startedAt | date:'short' }}</span>
+        </div>
+        <div class="detail" *ngIf="session.endedAt">
+          <span class="label">Ended</span>
+          <span class="value">{{ session.endedAt | date:'short' }}</span>
+        </div>
+        <div class="detail">
+          <span class="label">Duration</span>
+          <span class="value">{{ formatDuration(session) }}</span>
+        </div>
+        <div class="detail" *ngIf="session.energyChargedKwh != null">
+          <span class="label">Energy</span>
+          <span class="value">{{ session.energyChargedKwh | number:'1.1-2' }} kWh</span>
+        </div>
+        <div class="detail" *ngIf="session.ampsSet != null">
+          <span class="label">Amps</span>
+          <span class="value">{{ session.ampsSet }}A</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

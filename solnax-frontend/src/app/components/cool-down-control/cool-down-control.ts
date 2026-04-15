@@ -2,6 +2,7 @@ import { Component, DestroyRef, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CoolDownService } from '../../service/cool-down.service';
+import { CoolDownStatus } from '../../model/cool-down-status';
 
 @Component({
   selector: 'app-cool-down-control',
@@ -21,9 +22,11 @@ export class CoolDownControl implements OnInit {
   active = signal<boolean>(false);
   loading = signal<boolean>(false);
   toast = signal<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  cooldowns = signal<CoolDownStatus[]>([]);
 
   ngOnInit() {
     this.refreshStatus();
+    this.loadCooldownStatus();
   }
 
   /** LOAD STATUS */
@@ -43,6 +46,16 @@ export class CoolDownControl implements OnInit {
       });
   }
 
+  /** LOAD ACTIVE COOLDOWNS */
+  loadCooldownStatus() {
+    this.coolDownService.getStatus()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: statuses => this.cooldowns.set(statuses),
+        error: () => {} // silent fail
+      });
+  }
+
   /** ACTIONS */
   createCoolDown() {
     if (this.active()) return;
@@ -55,6 +68,7 @@ export class CoolDownControl implements OnInit {
           this.active.set(true);
           this.loading.set(false);
           this.showToast('Cooldown activated until tomorrow', 'success');
+          this.loadCooldownStatus();
         },
         error: err => {
           this.loading.set(false);
@@ -77,6 +91,7 @@ export class CoolDownControl implements OnInit {
           this.active.set(false);
           this.loading.set(false);
           this.showToast('Cooldown cleared', 'success');
+          this.cooldowns.set([]);
         },
         error: () => {
           this.loading.set(false);
@@ -89,5 +104,17 @@ export class CoolDownControl implements OnInit {
   private showToast(message: string, type: 'success' | 'error' | 'info') {
     this.toast.set({ message, type });
     setTimeout(() => this.toast.set(null), 3000);
+  }
+
+  formatReason(reason: string): string {
+    switch (reason) {
+      case 'MANUAL': return '🛑 Manual';
+      case 'NOT_CONNECTED': return '🔌 Not Connected';
+      case 'FULL': return '🔋 Battery Full';
+      case 'LOW_BATTERY': return '🪫 Low Battery';
+      case 'NO_RESPONSE': return '📡 No Response';
+      case 'UNABLE_TO_CHARGE': return '⚠️ Unable to Charge';
+      default: return reason;
+    }
   }
 }

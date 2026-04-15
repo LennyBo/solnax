@@ -80,9 +80,28 @@ public class ChargePointCoolDownManager {
         if(coolDownReason == CoolDownReason.FULL){
             end = LocalDateTime.now().plusHours(6);
         } else if (coolDownReason == CoolDownReason.NOT_CONNECTED) {
-            end = LocalDateTime.now().plusMinutes(60);
+            // Escalating cooldowns: count recent NOT_CONNECTED cooldowns for this target
+            int recentMisses = countRecentCoolDowns(target, CoolDownReason.NOT_CONNECTED, now.minusHours(12));
+            int minutes = switch (recentMisses) {
+                case 0 -> 30;
+                case 1 -> 60;
+                case 2 -> 120;
+                default -> 240; // cap at 4 hours
+            };
+            end = now.plusMinutes(minutes);
+            log.info("Escalating NOT_CONNECTED cooldown for {} — miss #{} → {} min", target, recentMisses + 1, minutes);
         } else if (coolDownReason == CoolDownReason.LOW_BATTERY) {
             end = LocalDateTime.now().plusMinutes(30);
+        } else if (coolDownReason == CoolDownReason.NO_RESPONSE) {
+            // BLE timeout — moderate cooldown
+            int recentTimeouts = countRecentCoolDowns(target, CoolDownReason.NO_RESPONSE, now.minusHours(6));
+            int minutes = switch (recentTimeouts) {
+                case 0 -> 15;
+                case 1 -> 30;
+                default -> 60;
+            };
+            end = now.plusMinutes(minutes);
+            log.info("NO_RESPONSE cooldown for {} — timeout #{} → {} min", target, recentTimeouts + 1, minutes);
         }
         log.info("Creating cooldown for {} ending at {} reason {}",target,end,coolDownReason);
         ChargePointCoolDown chargePointCoolDown = ChargePointCoolDown.builder()
@@ -92,5 +111,9 @@ public class ChargePointCoolDownManager {
                 .reason(coolDownReason)
                 .build();
         chargePointCooldownRepository.save(chargePointCoolDown);
+    }
+
+    private int countRecentCoolDowns(String target, CoolDownReason reason, LocalDateTime since) {
+        return chargePointCooldownRepository.countByTargetAndReasonAndTimeAfter(target, reason, since);
     }
 }

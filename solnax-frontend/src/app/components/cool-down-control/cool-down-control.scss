@@ -83,3 +83,46 @@
 .toast.success { background: #4caf50; }
 .toast.error { background: #f44336; }
 .toast.info { background: #2196f3; }
+
+/* Active cooldowns details */
+.cooldown-details {
+  margin-top: 12px;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 12px;
+
+  h4 {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: #555;
+  }
+}
+
+.cooldown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 0.85rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .cd-target {
+    font-family: monospace;
+    font-weight: 600;
+    min-width: 100px;
+  }
+
+  .cd-reason {
+    color: #666;
+  }
+
+  .cd-remaining {
+    font-weight: 500;
+    color: #ff9800;
+  }
+}
+
