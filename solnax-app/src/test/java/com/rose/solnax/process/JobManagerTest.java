@@ -53,7 +53,7 @@ class JobManagerTest {
         optimizer.optimizePower();
 
         verify(chargePoint).startCharge();
-        verify(chargePoint).adjustChargePower(3500);
+        verify(chargePoint).adjustChargePower(4000);
     }
 
     @Test
@@ -66,7 +66,7 @@ class JobManagerTest {
 
         optimizer.optimizePower();
 
-        verify(chargePoint).adjustChargePower(4500);
+        verify(chargePoint).adjustChargePower(5000);
         verify(chargePoint, never()).startCharge();
         verify(chargePoint, never()).stopCharge();
     }
@@ -140,7 +140,7 @@ class JobManagerTest {
         optimizer.optimizePower();
 
         verify(chargePoint).startCharge();
-        verify(chargePoint).adjustChargePower(3450);
+        verify(chargePoint).adjustChargePower(3950);
     }
 
     @Test
@@ -154,7 +154,7 @@ class JobManagerTest {
 
         optimizer.optimizePower();
 
-        verify(chargePoint).adjustChargePower(6000);
+        verify(chargePoint).adjustChargePower(6500);
         verify(chargePoint, never()).stopCharge();
     }
 }
