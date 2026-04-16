@@ -228,7 +228,7 @@ public class TeslaWallCharger implements IChargePoint {
         try {
             VehicleApiResponse response = bleAdapter.vehicle_data(vin);
             if (response == null) {
-                chargePointCoolDownManager.coolDown(vin, CoolDownReason.NO_RESPONSE);
+                //chargePointCoolDownManager.coolDown(vin, CoolDownReason.NO_RESPONSE);
                 return null;
             }
 
@@ -243,7 +243,7 @@ public class TeslaWallCharger implements IChargePoint {
             return response;
         } catch (Exception e) {
             log.warn("Couldn't reach {} via BLE: {}", vinLabel(vin), e.getMessage());
-            chargePointCoolDownManager.coolDown(vin, CoolDownReason.NO_RESPONSE);
+            //chargePointCoolDownManager.coolDown(vin, CoolDownReason.NO_RESPONSE);
             return null;
         }
     }
