@@ -62,7 +62,7 @@ public class JobManager {
         int availablePower = currentChargerDraw - gridExchange - powerBuffer;
 
         boolean isCharging = chargePoint.isCurrentlyCharging();
-        long minPower = chargePoint.getMinPower() - 1300; //1300W is just a buffer where it's not worth stopping if we use that much
+        long minPower = chargePoint.getMinPower(); 
 
         log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}",
                 gridExchange, currentChargerDraw, availablePower, minPower, isCharging);
@@ -76,7 +76,7 @@ public class JobManager {
             // Already charging — adjust amps to match current surplus
             log.info("Adjusting charge power to {}W", availablePower);
             chargePoint.adjustChargePower(availablePower);
-        } else if (isCharging && availablePower < minPower) {
+        } else if (isCharging && availablePower < minPower - 1300) { //1300W is just a buffer where it's not worth stopping if we use that much
             // Not enough surplus — stop charging
             log.info("Insufficient surplus ({}W < {}W) — stopping charge", availablePower, minPower);
             chargePoint.stopCharge();
