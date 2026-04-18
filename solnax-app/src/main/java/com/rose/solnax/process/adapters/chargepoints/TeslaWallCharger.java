@@ -190,14 +190,14 @@ public class TeslaWallCharger implements IChargePoint {
             return;
         }
 
-        VehicleApiResponse data = getVehicleData(vin);
+        //VehicleApiResponse data = getVehicleData(vin);
         int voltage = defaultVoltage;
         int phases = defaultPhases;
 
-        if (data != null) {
-            voltage = data.getChargerVoltage() > 0 ? data.getChargerVoltage() : defaultVoltage;
-            phases = data.getChargerPhases() > 0 ? data.getChargerPhases() : defaultPhases;
-        }
+        //if (data != null) {
+            //voltage = data.getChargerVoltage() > 0 ? data.getChargerVoltage() : defaultVoltage;
+            //phases = data.getChargerPhases() > 0 ? data.getChargerPhases() : defaultPhases;
+        //}
 
         int wattsPerAmp = voltage * phases;
         int targetAmps = availableWatts / wattsPerAmp;
