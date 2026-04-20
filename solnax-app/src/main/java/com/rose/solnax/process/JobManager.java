@@ -39,7 +39,7 @@ public class JobManager {
      * Formula: availablePower = chargerCurrentDraw - gridExchange - buffer
      *   (grid is positive when importing, negative when exporting)
      */
-    @Scheduled(cron = "0 1/5 6-22 * * *")
+    @Scheduled(cron = "0 1/5 5-22 * * *")
     @Transactional
     void optimizePower() {
         // Clear per-cycle vehicle data cache to get fresh readings
