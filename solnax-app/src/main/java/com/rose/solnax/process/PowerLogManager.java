@@ -95,10 +95,10 @@ public class PowerLogManager {
     public InstantPower getInstantPower() {
         PowerLog powerLogCached = getPowerLog();
         return InstantPower.builder()
-                .solar(Math.min(0,powerLogCached.getSolar() / 1000.0))
-                .house(Math.min(0,powerLogCached.getHouse() / 1000.0 * -1))
-                .heat(Math.min(0,powerLogCached.getHeater() / 1000.0))
-                .charger(Math.min(0,powerLogCached.getCharger() / 1000.0))
+                .solar(Math.max(0,powerLogCached.getSolar() / 1000.0))
+                .house(Math.max(0,powerLogCached.getHouse() / 1000.0 * -1))
+                .heat(Math.max(0,powerLogCached.getHeater() / 1000.0))
+                .charger(Math.max(0,powerLogCached.getCharger() / 1000.0))
                 .build();
     }
 
@@ -116,9 +116,9 @@ public class PowerLogManager {
                 .time(LocalDateTime.now())
                 .solar(solarIn)
                 .house(houseOut)
-                .charger((int) charger)
-                .heater((int) heater)
-                .kitchen((int) kitchen)
+                .charger((int) Math.max(0,charger))
+                .heater((int) Math.max(0,heater))
+                .kitchen((int) Math.max(0,kitchen))
                 .build();
     }
 
