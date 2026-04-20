@@ -63,12 +63,12 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public Long getMinPower() {
-        return (long) (minAmps * defaultVoltage * defaultPhases);
+        return ((long) minAmps * defaultVoltage * defaultPhases);
     }
 
     @Override
     public Long getMaxPower() {
-        return (long) (maxAmps * defaultVoltage * defaultPhases);
+        return ((long) maxAmps * defaultVoltage * defaultPhases);
     }
 
     // ─── Core charge actions ────────────────────────────────────────────
@@ -83,6 +83,7 @@ public class TeslaWallCharger implements IChargePoint {
         if (connectedCar != null) {
             VehicleApiResponse data = getVehicleData(connectedCar);
             log.info("{} is ready to charge -> Starting!", vinLabel(connectedCar));
+            chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(connectedCar, CoolDownReason.NOT_CONNECTED);
             bleAdapter.setChargeState(maxChargeLevel, connectedCar);
             bleAdapter.chargeStart(connectedCar);
             chargeSessionManager.startSession(connectedCar, data);
@@ -107,14 +108,10 @@ public class TeslaWallCharger implements IChargePoint {
         }
 
         VehicleApiResponse data = getVehicleData(vinToStop);
-        if (data != null && data.isBatteryLow()) {
-            log.info("Battery of {} is too low. Letting charge continue at min level", vinLabel(vinToStop));
-            bleAdapter.setChargeState(minChargeLevel, vinToStop);
-            return;
-        }
 
         log.info("Stopping charge of {}!", vinLabel(vinToStop));
         bleAdapter.chargeStop(vinToStop);
+        // Set charge limit to 60% so the car won't auto-start when plugged in
         bleAdapter.setChargeState(minChargeLevel, vinToStop);
         chargeSessionManager.endSession(vinToStop, data);
     }
@@ -171,6 +168,74 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public String getConnectedVin() {
         return connectedCar;
+    }
+
+    @Override
+    public void detectAutoCharging(int chargerDraw) {
+        // If the charger meter shows significant draw but there's no active session,
+        // a car must have started charging on its own (manual plug-in or auto-start).
+        // No BLE calls needed — we just use the Shelly power reading.
+        long minDetectionWatts = getMinPower();
+        if (chargerDraw < minDetectionWatts) {
+            return; // No significant draw — nothing to detect
+        }
+
+        List<com.rose.solnax.model.entity.ChargeSession> activeSessions = chargeSessionManager.getActiveSessions();
+        if (!activeSessions.isEmpty()) {
+            return; // Already tracking a session
+        }
+
+        // Something is charging without a session — figure out which car
+        // We don't know which car it is without BLE, so just start a session with a placeholder
+        // and let the next isChargeable/isCurrentlyCharging call (which already uses BLE) resolve it.
+        log.info("Charger drawing {}W with no active session — a car started charging on its own", chargerDraw);
+
+        // Clear NOT_CONNECTED cooldowns for both cars since one of them is clearly connected
+        chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(blackVin, CoolDownReason.NOT_CONNECTED);
+        chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(whiteVin, CoolDownReason.NOT_CONNECTED);
+    }
+
+    @Override
+    public int getBatteryLevel() {
+        // Only use cached data — don't wake the car just to check battery level
+        if (connectedCar == null) return -1;
+        VehicleApiResponse cached = blackVin.equals(connectedCar) ? cachedBlackData : cachedWhiteData;
+        if (cached == null) return -1;
+        return cached.getBatteryLevel();
+    }
+
+    @Override
+    public void detectChargeStopped(int chargerDraw) {
+        // If there are active sessions but the charger meter shows no significant draw,
+        // the car stopped charging on its own (reached charge limit, error, etc.)
+        // No BLE calls needed — just use the Shelly power reading.
+        List<com.rose.solnax.model.entity.ChargeSession> activeSessions = chargeSessionManager.getActiveSessions();
+        if (activeSessions.isEmpty()) {
+            return; // No active sessions — nothing to detect
+        }
+
+        // Allow some tolerance — small draw could be idle/standby
+        if (chargerDraw > 500) {
+            return; // Still drawing power — charge is ongoing
+        }
+
+        log.info("Charger draw is {}W but there are {} active session(s) — charge stopped on its own", chargerDraw, activeSessions.size());
+
+        for (var session : activeSessions) {
+            String vin = session.getVin();
+            // End the session — pass null for vehicleData to avoid BLE wake-up
+            chargeSessionManager.endSession(vin, null);
+
+            // Set charge limit back to 60% to prevent auto-restart
+            try {
+                bleAdapter.setChargeState(minChargeLevel, vin);
+                log.info("Set charge limit to {}% for {} to prevent auto-restart", minChargeLevel, vinLabel(vin));
+            } catch (Exception e) {
+                log.warn("Failed to set charge limit for {}: {}", vinLabel(vin), e.getMessage());
+            }
+        }
+
+        connectedCar = null;
     }
 
     // ─── Amp management ─────────────────────────────────────────────────
@@ -269,6 +334,8 @@ public class TeslaWallCharger implements IChargePoint {
                 VehicleApiResponse blackData = getVehicleData(blackVin);
                 if (blackData != null && blackData.isActivelyCharging()) {
                     connectedCar = blackVin;
+                    // Ensure a session exists (handles auto/manual start detection)
+                    chargeSessionManager.startSession(blackVin, blackData);
                     return blackVin;
                 }
             } catch (Exception e) {
@@ -281,6 +348,8 @@ public class TeslaWallCharger implements IChargePoint {
                 VehicleApiResponse whiteData = getVehicleData(whiteVin);
                 if (whiteData != null && whiteData.isActivelyCharging()) {
                     connectedCar = whiteVin;
+                    // Ensure a session exists (handles auto/manual start detection)
+                    chargeSessionManager.startSession(whiteVin, whiteData);
                     return whiteVin;
                 }
             } catch (Exception e) {

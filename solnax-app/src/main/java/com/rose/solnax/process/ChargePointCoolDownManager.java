@@ -68,6 +68,12 @@ public class ChargePointCoolDownManager {
         log.info("Cleared {} cooldowns",i);
     }
 
+    @Transactional
+    public void clearCoolDownsByReasonAndTarget(String target, CoolDownReason reason) {
+        int i = chargePointCooldownRepository.deleteAllByTargetAndReasonAndEndAfter(target, reason, LocalDateTime.now());
+        log.info("Cleared {} {} cooldowns for {}", i, reason, target);
+    }
+
     @Transactional(readOnly = true)
     public List<ChargePointCoolDown> getActiveCoolDowns() {
         return chargePointCooldownRepository.findAllByEndAfter(LocalDateTime.now());

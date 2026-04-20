@@ -31,10 +31,15 @@ public class JobManager {
      * Smart solar-tracking charge optimizer.
      *
      * Runs every 5 minutes during daylight hours.
-     * Calculates available solar surplus and adjusts charging amps accordingly:
-     *   - If surplus > min charge power and not charging → start + set amps
-     *   - If already charging → adjust amps (may stop if surplus too low)
-     *   - If surplus is negative → stop charging
+     *
+     * Battery level strategy:
+     *   - Below 60%: let the car charge freely (don't interfere / don't stop)
+     *   - 60-80%: solar optimization — adjust amps to match surplus, stop if not enough
+     *   - At/above 80% (or charge complete): stop and set limit to 60% to prevent auto-restart
+     *
+     * Auto-charge detection:
+     *   - If a car started charging on its own (manual plug-in or auto-start),
+     *     detect it, start a session, and clear NOT_CONNECTED cooldowns.
      *
      * Formula: availablePower = chargerCurrentDraw - gridExchange - buffer
      *   (grid is positive when importing, negative when exporting)
@@ -53,31 +58,38 @@ public class JobManager {
             return;
         }
 
-        // Available power for the charger:
-        // charger = current charger draw (watts, positive when drawing)
-        // house = grid meter (positive = importing, negative = exporting)
-        // availablePower = what the charger could draw without importing from grid
         int currentChargerDraw = lastLog.getCharger();
         int gridExchange = lastLog.getHouse();
         int availablePower = currentChargerDraw - gridExchange - powerBuffer;
 
+        // Detect cars that started charging on their own — uses charger meter, no BLE
+        chargePoint.detectAutoCharging(currentChargerDraw);
+
+        // Detect if charging stopped on its own (e.g. reached max charge %) — uses charger meter, no BLE
+        chargePoint.detectChargeStopped(currentChargerDraw);
+
         boolean isCharging = chargePoint.isCurrentlyCharging();
-        long minPower = chargePoint.getMinPower(); 
+        long minPower = chargePoint.getMinPower();
+        int batteryLevel = chargePoint.getBatteryLevel();
 
-        log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}",
-                gridExchange, currentChargerDraw, availablePower, minPower, isCharging);
+        log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}, battery={}%",
+                gridExchange, currentChargerDraw, availablePower, minPower, isCharging, batteryLevel);
 
+        // ── Battery below 60%: let it charge freely, don't stop ──
+        if (isCharging && batteryLevel >= 0 && batteryLevel < 60) {
+            log.info("Battery at {}% (< 60%) — letting charge continue freely", batteryLevel);
+            return;
+        }
+
+        // ── Battery 60-80%: solar optimization mode ──
         if (!isCharging && availablePower >= minPower) {
-            // Enough surplus to start charging
             log.info("Starting charge with {}W available (surplus)", availablePower);
             chargePoint.startCharge();
             chargePoint.adjustChargePower(availablePower);
         } else if (isCharging && availablePower >= minPower) {
-            // Already charging — adjust amps to match current surplus
             log.info("Adjusting charge power to {}W", availablePower);
             chargePoint.adjustChargePower(availablePower);
-        } else if (isCharging && availablePower < minPower - 1300) { //1300W is just a buffer where it's not worth stopping if we use that much
-            // Not enough surplus — stop charging
+        } else if (isCharging && availablePower < minPower - 1300) {
             log.info("Insufficient surplus ({}W < {}W) — stopping charge", availablePower, minPower);
             chargePoint.stopCharge();
         } else {
