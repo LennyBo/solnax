@@ -74,6 +74,12 @@ public class PowerLogManager {
                         paddedLogs.getCharger().add(actual.getCharger());
                         paddedLogs.getHeater().add(actual.getHeater());
                         paddedLogs.getKitchen().add(actual.getKitchen());
+                    }else{
+                        paddedLogs.getSolar().add(0);
+                        paddedLogs.getHouse().add(0);
+                        paddedLogs.getCharger().add(0);
+                        paddedLogs.getHeater().add(0);
+                        paddedLogs.getKitchen().add(0);
                     }
                 });
 
@@ -89,10 +95,10 @@ public class PowerLogManager {
     public InstantPower getInstantPower() {
         PowerLog powerLogCached = getPowerLog();
         return InstantPower.builder()
-                .solar(powerLogCached.getSolar() / 1000.0)
-                .house(powerLogCached.getHouse() / 1000.0 * -1)
-                .heat(powerLogCached.getHeater() / 1000.0)
-                .charger(powerLogCached.getCharger() / 1000.0)
+                .solar(Math.min(0,powerLogCached.getSolar() / 1000.0))
+                .house(Math.min(0,powerLogCached.getHouse() / 1000.0 * -1))
+                .heat(Math.min(0,powerLogCached.getHeater() / 1000.0))
+                .charger(Math.min(0,powerLogCached.getCharger() / 1000.0))
                 .build();
     }
 
