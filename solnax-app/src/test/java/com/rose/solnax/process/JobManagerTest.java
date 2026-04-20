@@ -49,6 +49,7 @@ class JobManagerTest {
                 .thenReturn(log(-4000, 0));
         when(chargePoint.isCurrentlyCharging()).thenReturn(false);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -63,6 +64,7 @@ class JobManagerTest {
                 .thenReturn(log(-2000, 3000));
         when(chargePoint.isCurrentlyCharging()).thenReturn(true);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -78,6 +80,7 @@ class JobManagerTest {
                 .thenReturn(log(2500, 3500));
         when(chargePoint.isCurrentlyCharging()).thenReturn(true);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -92,6 +95,7 @@ class JobManagerTest {
                 .thenReturn(log(-1000, 0));
         when(chargePoint.isCurrentlyCharging()).thenReturn(false);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -107,6 +111,7 @@ class JobManagerTest {
                 .thenReturn(log(2500, 0));
         when(chargePoint.isCurrentlyCharging()).thenReturn(false);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -122,6 +127,7 @@ class JobManagerTest {
                 .thenReturn(log(-1000, 0));
         when(chargePoint.isCurrentlyCharging()).thenReturn(false);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -136,6 +142,7 @@ class JobManagerTest {
                 .thenReturn(log(-3950, 0));
         when(chargePoint.isCurrentlyCharging()).thenReturn(false);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
@@ -151,6 +158,7 @@ class JobManagerTest {
                 .thenReturn(log(500, 7000));
         when(chargePoint.isCurrentlyCharging()).thenReturn(true);
         when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel()).thenReturn(60);
 
         optimizer.optimizePower();
 
