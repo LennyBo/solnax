@@ -16,9 +16,6 @@ public class ChargeOptimizer {
 
     private final IChargePoint chargePoint;
 
-    @Value("${tesla-ble.power-buffer:500}")
-    private int powerBuffer;
-
     /**
      * Smart solar-tracking charge optimizer.
      *
@@ -45,7 +42,7 @@ public class ChargeOptimizer {
 
         int currentChargerDraw = lastLog.getCharger();
         int gridExchange = lastLog.getHouse();
-        int availablePower = currentChargerDraw - gridExchange - powerBuffer;
+        int availablePower = currentChargerDraw - gridExchange;
 
         // Detect cars that started charging on their own — uses charger meter, no BLE
         chargePoint.detectAutoCharging(currentChargerDraw);

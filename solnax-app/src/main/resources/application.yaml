@@ -53,7 +53,6 @@ tesla-ble:
   black: VINBLACK
   max-charge-level: 80 #%
   min-charge-level: 60 #%
-  power-buffer: 500 # watts safety margin to avoid grid import
   default-voltage: 230 # volts
   default-phases: 3
   min-amps: 5 # minimum charge amps (3-phase)
