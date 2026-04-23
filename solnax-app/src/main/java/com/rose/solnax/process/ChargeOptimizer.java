@@ -57,12 +57,6 @@ public class ChargeOptimizer {
         log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}, battery={}%",
                 gridExchange, currentChargerDraw, availablePower, minPower, isCharging, batteryLevel);
 
-        // ── Battery below 60%: let it charge freely, don't stop ──
-        if (isCharging && batteryLevel >= 0 && batteryLevel < 60) {
-            log.info("Battery at {}% (< 60%) — letting charge continue freely", batteryLevel);
-            return;
-        }
-
         // ── Battery 60-80%: solar optimization mode ──
         if (!isCharging && availablePower >= minPower) {
             log.info("Starting charge with {}W available (surplus)", availablePower);
@@ -71,7 +65,7 @@ public class ChargeOptimizer {
         } else if (isCharging && availablePower >= minPower) {
             log.info("Adjusting charge power to {}W", availablePower);
             chargePoint.adjustChargePower(availablePower);
-        } else if (isCharging && availablePower < minPower - 1300) {
+        } else if (isCharging && availablePower < minPower - 1300 && !(batteryLevel >= 0 && batteryLevel < 60)) { //Allow to keep charging if low battery
             log.info("Insufficient surplus ({}W < {}W) — stopping charge", availablePower, minPower);
             chargePoint.stopCharge();
         } else {
