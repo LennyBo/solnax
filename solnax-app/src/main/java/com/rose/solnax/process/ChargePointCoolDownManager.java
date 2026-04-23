@@ -90,10 +90,6 @@ public class ChargePointCoolDownManager {
             end = now.plusMinutes(minutes);
         } else if (coolDownReason == CoolDownReason.LOW_BATTERY) {
             end = LocalDateTime.now().plusMinutes(240);
-        } else if (coolDownReason == CoolDownReason.NO_RESPONSE) {
-            // BLE timeout — moderate cooldown
-            int minutes = 60;
-            end = now.plusMinutes(minutes);
         }
         log.info("Creating cooldown for {} ending at {} reason {}",target,end,coolDownReason);
         ChargePointCoolDown chargePointCoolDown = ChargePointCoolDown.builder()

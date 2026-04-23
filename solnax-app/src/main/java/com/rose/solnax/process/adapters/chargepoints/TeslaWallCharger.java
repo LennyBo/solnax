@@ -80,12 +80,13 @@ public class TeslaWallCharger implements IChargePoint {
             return;
         }
 
+        bleAdapter.setChargeState(maxChargeLevel, blackVin);
+        bleAdapter.setChargeState(maxChargeLevel, whiteVin);
+
         if (connectedCar != null) {
             VehicleApiResponse data = getVehicleData(connectedCar);
             log.info("{} is ready to charge -> Starting!", vinLabel(connectedCar));
             chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(connectedCar, CoolDownReason.NOT_CONNECTED);
-            bleAdapter.setChargeState(maxChargeLevel, connectedCar);
-            bleAdapter.chargeStart(connectedCar);
             chargeSessionManager.startSession(connectedCar, data);
         }
     }
@@ -93,27 +94,18 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public void stopCharge() {
         List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
-        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        boolean isBlackCoolDown = activeCoolDowns.stream().filter(c-> c.getReason() != CoolDownReason.NOT_CONNECTED).anyMatch(c -> blackVin.equals(c.getTarget()));
+        boolean isWhiteCoolDown = activeCoolDowns.stream().filter(c-> c.getReason() != CoolDownReason.NOT_CONNECTED).anyMatch(c -> whiteVin.equals(c.getTarget()));
 
         if (isBlackCoolDown && isWhiteCoolDown) {
             log.info("Both cars in cool down period");
             return;
         }
 
-        String vinToStop = findChargingVin(isBlackCoolDown, isWhiteCoolDown);
-        if (vinToStop == null) {
-            log.info("No car currently charging to stop");
-            return;
-        }
-
-        VehicleApiResponse data = getVehicleData(vinToStop);
-
-        log.info("Stopping charge of {}!", vinLabel(vinToStop));
-        bleAdapter.chargeStop(vinToStop);
+        log.info("Stopping charge!");
         // Set charge limit to 60% so the car won't auto-start when plugged in
-        bleAdapter.setChargeState(minChargeLevel, vinToStop);
-        chargeSessionManager.endSession(vinToStop, data);
+        bleAdapter.setChargeState(minChargeLevel, blackVin);
+        bleAdapter.setChargeState(minChargeLevel, whiteVin);
     }
 
     // ─── Chargeable / Connected checks ──────────────────────────────────
@@ -272,7 +264,6 @@ public class TeslaWallCharger implements IChargePoint {
         if (availableWatts < (long) minAmps * wattsPerAmp) {
             log.info("Available power {}W is below minimum {}W — stopping charge",
                     availableWatts, minAmps * wattsPerAmp);
-            stopCharge();
             return;
         }
 
