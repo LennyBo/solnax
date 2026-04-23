@@ -50,7 +50,7 @@ public class ChargeOptimizer {
         // Detect if charging stopped on its own (e.g. reached max charge %) — uses charger meter, no BLE
         chargePoint.detectChargeStopped(currentChargerDraw);
 
-        boolean isCharging = chargePoint.isCurrentlyCharging();
+        boolean isCharging = currentChargerDraw > chargePoint.getMinPower();
         long minPower = chargePoint.getMinPower();
         int batteryLevel = chargePoint.getBatteryLevel();
 
