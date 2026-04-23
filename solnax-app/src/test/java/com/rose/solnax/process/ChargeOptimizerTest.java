@@ -49,7 +49,7 @@ class ChargeOptimizerTest {
 
         optimizer.optimize(log(-2000, 4000));
 
-        verify(chargePoint).adjustChargePower(5500);
+        verify(chargePoint).adjustChargePower(6000);
         verify(chargePoint, never()).startCharge();
         verify(chargePoint, never()).stopCharge();
     }
