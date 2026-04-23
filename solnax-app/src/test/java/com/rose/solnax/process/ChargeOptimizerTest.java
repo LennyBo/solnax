@@ -47,7 +47,7 @@ class ChargeOptimizerTest {
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel()).thenReturn(60);
 
-        optimizer.optimize(log(-2000, 3000));
+        optimizer.optimize(log(-2000, 4000));
 
         verify(chargePoint).adjustChargePower(5500);
         verify(chargePoint, never()).startCharge();
