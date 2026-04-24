@@ -75,6 +75,10 @@ public class TeslaWallCharger implements IChargePoint {
 
     @Override
     public void startCharge() {
+        if (!isChargeable()) {
+            log.info("No car connected to charge");
+            return;
+        }
 
         bleAdapter.setChargeState(maxChargeLevel, blackVin);
         bleAdapter.setChargeState(maxChargeLevel, whiteVin);
