@@ -79,6 +79,11 @@ public class ChargePointCoolDownManager {
         return chargePointCooldownRepository.findAllByEndAfter(LocalDateTime.now());
     }
 
+    @Transactional(readOnly = true)
+    public boolean hasActiveCoolDownForTarget(String target) {
+        return chargePointCooldownRepository.existsByTargetAndEndAfter(target, LocalDateTime.now());
+    }
+
     @Transactional
     public void coolDown(String target, CoolDownReason coolDownReason) {
         LocalDateTime now = LocalDateTime.now();

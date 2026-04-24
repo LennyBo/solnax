@@ -300,6 +300,7 @@ public class TeslaWallCharger implements IChargePoint {
             if (response.isBatteryFull()) {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.FULL);
             } else if (!response.isConnected()) {
+                prepareDisconnectedVehicleForNextCharge(vin);
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
             } else if(response.isBatteryLow() && response.isActivelyCharging()) {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
@@ -310,6 +311,19 @@ public class TeslaWallCharger implements IChargePoint {
             log.warn("Couldn't reach {} via BLE: {}", vinLabel(vin), e.getMessage());
             //chargePointCoolDownManager.coolDown(vin, CoolDownReason.NO_RESPONSE);
             return null;
+        }
+    }
+
+    private void prepareDisconnectedVehicleForNextCharge(String vin) {
+        if (chargePointCoolDownManager.hasActiveCoolDownForTarget(vin)) {
+            return;
+        }
+
+        try {
+            bleAdapter.setChargeState(maxChargeLevel, vin);
+            log.info("{} is not connected — set charge limit to {}% for the next plug-in", vinLabel(vin), maxChargeLevel);
+        } catch (Exception e) {
+            log.warn("Failed to set charge limit for disconnected {}: {}", vinLabel(vin), e.getMessage());
         }
     }
 

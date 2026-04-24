@@ -13,6 +13,7 @@ import java.util.List;
 public interface ChargePointCooldownRepository extends JpaRepository<ChargePointCoolDown, LocalDateTime> {
     List<ChargePointCoolDown> findAllByEndAfter(LocalDateTime localDateTime);
     boolean existsByEndAfterAndReason(LocalDateTime localDateTime, CoolDownReason reason);
+    boolean existsByTargetAndEndAfter(String target, LocalDateTime localDateTime);
 
     @Modifying
     int deleteAllByEndAfter(LocalDateTime localDateTime);
