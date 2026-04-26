@@ -245,8 +245,8 @@ public class TeslaWallCharger implements IChargePoint {
         String vin = connectedCar;
         if (vin == null) {
             List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-            boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
-            boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+            boolean isBlackCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> blackVin.equals(c.getTarget()));
+            boolean isWhiteCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> whiteVin.equals(c.getTarget()));
             vin = findChargingVin(isBlackCoolDown, isWhiteCoolDown);
         }
 
@@ -268,13 +268,6 @@ public class TeslaWallCharger implements IChargePoint {
         int targetAmps = availableWatts / wattsPerAmp;
 
         targetAmps = Math.max(minAmps, Math.min(maxAmps, targetAmps));
-
-        if (availableWatts < (long) minAmps * wattsPerAmp) {
-            log.info("Available power {}W is below minimum {}W — stopping charge",
-                    availableWatts, minAmps * wattsPerAmp);
-            stopCharge();
-            return;
-        }
 
         log.info("Adjusting charge amps to {} (available: {}W, {}V x {} phases = {}W/A)",
                 targetAmps, availableWatts, voltage, phases, wattsPerAmp);
