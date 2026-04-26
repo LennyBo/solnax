@@ -121,8 +121,8 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public boolean isChargeable() {
         List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
-        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        boolean isBlackCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> blackVin.equals(c.getTarget()));
+        boolean isWhiteCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> whiteVin.equals(c.getTarget()));
 
         if (isBlackCoolDown && isWhiteCoolDown) {
             log.info("Both cars in cool down period");
