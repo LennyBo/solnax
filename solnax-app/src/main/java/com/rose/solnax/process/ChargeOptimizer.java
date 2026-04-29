@@ -58,7 +58,7 @@ public class ChargeOptimizer {
                 gridExchange, currentChargerDraw, availablePower, minPower, isCharging, batteryLevel);
 
         // ── Battery 60-80%: solar optimization mode ──
-        if (!isCharging && availablePower >= minPower - 1300) {
+        if (!isCharging && availablePower >= minPower) {
             log.info("Starting charge with {}W available (surplus)", availablePower);
             chargePoint.startCharge();
             chargePoint.adjustChargePower(availablePower);
