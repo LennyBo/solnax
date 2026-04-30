@@ -5,7 +5,6 @@ import com.rose.solnax.process.adapters.chargepoints.IChargePoint;
 import com.rose.solnax.process.adapters.chargepoints.TeslaWallCharger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +39,14 @@ public class ChargeOptimizer {
             wallCharger.clearCycleCache();
         }
 
-        int currentChargerDraw = lastLog.getCharger();
-        int gridExchange = lastLog.getHouse();
+        Integer currentChargerDraw = lastLog.getCharger();
+        Integer gridExchange = lastLog.getHouse();
+        if (currentChargerDraw == null || gridExchange == null) {
+            log.warn("Skipping optimization because required power readings are missing (charger={}, house={})",
+                    currentChargerDraw, gridExchange);
+            return;
+        }
+
         int availablePower = currentChargerDraw - gridExchange;
 
         // Detect cars that started charging on their own — uses charger meter, no BLE

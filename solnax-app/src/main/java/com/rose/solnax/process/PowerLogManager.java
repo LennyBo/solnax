@@ -5,9 +5,9 @@ import com.rose.solnax.model.dto.InstantPower;
 import com.rose.solnax.model.dto.PowerLogs;
 import com.rose.solnax.model.entity.PowerLog;
 import com.rose.solnax.model.repository.PowerLogRepository;
-import com.rose.solnax.process.adapters.chargepoints.tesla.TWCManagerAdapter;
 import com.rose.solnax.process.adapters.meters.IPowerMeter;
 import com.rose.solnax.process.adapters.meters.shelly.ShellyEm3Client;
+import com.rose.solnax.process.adapters.meters.shelly.ShellyEm3Exception;
 import com.rose.solnax.process.adapters.meters.shelly.ShellyEm3Registry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,10 +67,9 @@ public class PowerLogManager {
 
                     PowerLog actual = logMap.get(currentTime);
                     if (actual != null) {
-                        // Data exists for this slot
-                        int house = actual.getSolar() + actual.getHouse() - actual.getCharger() - actual.getKitchen() - actual.getHeater();
+                        Integer house = calculateDerivedHouse(actual);
                         paddedLogs.getSolar().add(actual.getSolar());
-                        paddedLogs.getHouse().add(Math.max(house, 0));
+                        paddedLogs.getHouse().add(house == null ? null : Math.max(house, 0));
                         paddedLogs.getCharger().add(actual.getCharger());
                         paddedLogs.getHeater().add(actual.getHeater());
                         paddedLogs.getKitchen().add(actual.getKitchen());
@@ -95,10 +94,10 @@ public class PowerLogManager {
     public InstantPower getInstantPower() {
         PowerLog powerLogCached = getPowerLog();
         return InstantPower.builder()
-                .solar(powerLogCached.getSolar() / 1000.0)
-                .house(powerLogCached.getHouse() / 1000.0 * -1)
-                .heat(Math.max(0,powerLogCached.getHeater() / 1000.0))
-                .charger(Math.max(0,powerLogCached.getCharger() / 1000.0))
+                .solar(toKilowatts(powerLogCached.getSolar()))
+                .house(toInvertedKilowatts(powerLogCached.getHouse()))
+                .heat(toPositiveKilowatts(powerLogCached.getHeater()))
+                .charger(toPositiveKilowatts(powerLogCached.getCharger()))
                 .build();
     }
 
@@ -106,24 +105,59 @@ public class PowerLogManager {
     public PowerLog getPowerLog() {
         Integer houseOut = inverter.gridMeter();
         Integer solarIn = inverter.solarMeter();
-        Map<String, ShellyEm3Client> all = registry.getAll();
+        Integer heater = readShellyPower("heater", -1);
+        Integer charger = readShellyPower("charger", 1);
+        Integer kitchen = readShellyPower("kitchen", -1);
 
-        double heater = all.get("heater").getTotalActivePowerW() * -1;
-        double charger = all.get("charger").getTotalActivePowerW();
-        //double sauna = all.get("sauna").getTotalActivePowerW();
-        double kitchen = all.get("kitchen").getTotalActivePowerW() * -1;
         return PowerLog.builder()
                 .time(LocalDateTime.now())
                 .solar(solarIn)
                 .house(houseOut)
-                .charger((int) Math.max(0,charger))
-                .heater((int) Math.max(0,heater))
-                .kitchen((int) Math.max(0,kitchen))
+                .charger(charger)
+                .heater(heater)
+                .kitchen(kitchen)
                 .build();
     }
 
     @Transactional
     public PowerLog logPower() {
         return powerLogRepository.save(getPowerLog());
+    }
+
+    private Integer calculateDerivedHouse(PowerLog actual) {
+        if (actual.getSolar() == null || actual.getHouse() == null || actual.getCharger() == null
+                || actual.getKitchen() == null || actual.getHeater() == null) {
+            return null;
+        }
+
+        return actual.getSolar() + actual.getHouse() - actual.getCharger() - actual.getKitchen() - actual.getHeater();
+    }
+
+    private Integer readShellyPower(String deviceId, int direction) {
+        ShellyEm3Client client = registry.getAll().get(deviceId);
+        if (client == null) {
+            log.warn("Shelly '{}' is not configured; storing null for this reading", deviceId);
+            return null;
+        }
+
+        try {
+            double watts = client.getTotalActivePowerW() * direction;
+            return (int) Math.max(0, watts);
+        } catch (ShellyEm3Exception ex) {
+            log.warn("Shelly '{}' did not respond; storing null for this reading: {}", deviceId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private Double toKilowatts(Integer watts) {
+        return watts == null ? null : watts / 1000.0;
+    }
+
+    private Double toPositiveKilowatts(Integer watts) {
+        return watts == null ? null : Math.max(0, watts / 1000.0);
+    }
+
+    private Double toInvertedKilowatts(Integer watts) {
+        return watts == null ? null : watts / 1000.0 * -1;
     }
 }

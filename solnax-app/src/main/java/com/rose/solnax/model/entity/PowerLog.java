@@ -43,7 +43,7 @@ public class PowerLog {
     public String toString() {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
         return String.format(
-                "[%s] solar=%dw, house=%dw, heater=%dw, charger=%dw, kitchen=%dw",
+                "[%s] solar=%sw, house=%sw, heater=%sw, charger=%sw, kitchen=%sw",
                 time.format(fmt),
                 solar,
                 house,
