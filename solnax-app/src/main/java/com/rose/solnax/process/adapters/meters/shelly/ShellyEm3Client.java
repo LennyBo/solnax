@@ -109,7 +109,7 @@ public class ShellyEm3Client {
 
     private <T> T get(String path, Class<T> type) {
         String url = device.baseUrl() + path;
-        log.debug("[{}] GET {}", deviceId, url);
+        //log.debug("[{}] GET {}", deviceId, url);
         try {
             T body = rest.getForObject(url, type);
             if (body == null) throw new ShellyEm3Exception(deviceId + ": empty response from " + url);
