@@ -97,14 +97,7 @@ public class TeslaBLEAdapter {
         log.info("Fetching vehicle data for VIN {}", vin);
         return retryTemplate.execute(context ->
                 {
-                    int attempt = context.getRetryCount() + 1;
                     String path = "/api/1/vehicles/" + vin + "/vehicle_data?wakeup=true";
-                    log.info(
-                            "HTTP call attempt {} | url={}",
-                            attempt,
-                            baseUrl + path
-                    );
-
                     return restClient.get()
                             .uri(path)
                             .retrieve()
