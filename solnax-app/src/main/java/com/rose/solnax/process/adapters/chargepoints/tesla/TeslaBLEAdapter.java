@@ -39,6 +39,7 @@ public class TeslaBLEAdapter {
 
 
     public VehicleApiResponse chargeStart(String vin){
+        log.info("Attempting to start charging for VIN {}", vin);
         return retryTemplate.execute(context ->
                 restClient.post()
                         .uri("/api/1/vehicles/" + vin + "/command/charge_start")
@@ -51,6 +52,7 @@ public class TeslaBLEAdapter {
     }
 
     public VehicleApiResponse chargeStop(String vin){
+        log.info("Attempting to stop charging for VIN {}", vin);
         return retryTemplate.execute(context ->
                 restClient.post()
                         .uri("/api/1/vehicles/" + vin + "/command/charge_stop")
@@ -63,6 +65,7 @@ public class TeslaBLEAdapter {
     }
 
     public VehicleApiResponse setChargeState(Integer chargeLevel,String vin){
+        log.info("Setting charge level to {}% for VIN {}", chargeLevel, vin);
         return retryTemplate.execute(context ->
                 restClient.post()
                         .uri("/api/1/vehicles/" + vin + "/command/set_charge_limit")
@@ -91,6 +94,7 @@ public class TeslaBLEAdapter {
 
     @Cacheable(value = "tesla-ble", key = "#p0")
     public VehicleApiResponse vehicle_data(String vin){
+        log.info("Fetching vehicle data for VIN {}", vin);
         return retryTemplate.execute(context ->
                 {
                     int attempt = context.getRetryCount() + 1;

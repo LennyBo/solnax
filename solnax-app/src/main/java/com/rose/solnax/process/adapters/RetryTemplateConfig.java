@@ -64,9 +64,7 @@ public class RetryTemplateConfig {
                     RetryCallback<T, E> callback,
                     Throwable throwable) {
 
-                if (throwable == null) {
-                    log.info("Retry succeeded after {} attempt(s)", context.getRetryCount());
-                } else {
+                if (throwable != null) {
                     log.warn("Retry exhausted after {} attempts", context.getRetryCount());
                 }
             }
