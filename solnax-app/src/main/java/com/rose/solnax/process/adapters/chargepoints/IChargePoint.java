@@ -40,7 +40,7 @@ public interface IChargePoint {
     /**
      * @return the battery level of the currently connected/charging car, or -1
      */
-    int getBatteryLevel();
+    int getBatteryLevel(boolean wakeUp);
 
     /**
      * Detect if charging stopped on its own (e.g. car reached max charge limit).
@@ -49,4 +49,6 @@ public interface IChargePoint {
      * @param chargerDraw current charger power draw in watts from the Shelly meter
      */
     void detectChargeStopped(int chargerDraw);
+
+    void setLowChargeState();
 }

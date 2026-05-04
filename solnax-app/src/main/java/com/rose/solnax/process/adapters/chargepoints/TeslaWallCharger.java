@@ -196,7 +196,22 @@ public class TeslaWallCharger implements IChargePoint {
     }
 
     @Override
-    public int getBatteryLevel() {
+    public int getBatteryLevel(boolean wakeUp) {
+        if (wakeUp) {
+            VehicleApiResponse blackData = fetchAndEvaluate(blackVin);
+            if (blackData != null && blackData.isActivelyCharging()) {
+                log.info("Black is connected and charging");
+                connectedCar = blackVin;
+                cachedBlackData = blackData;
+            } else {
+                VehicleApiResponse whiteData = fetchAndEvaluate(whiteVin);
+                if (whiteData != null && whiteData.isActivelyCharging()) {
+                    log.info("White is connected and charging");
+                    connectedCar = whiteVin;
+                    cachedWhiteData = whiteData;
+                }
+            }
+        }
         // Only use cached data — don't wake the car just to check battery level
         if (connectedCar == null) return -1;
         VehicleApiResponse cached = blackVin.equals(connectedCar) ? cachedBlackData : cachedWhiteData;
@@ -238,6 +253,17 @@ public class TeslaWallCharger implements IChargePoint {
         connectedCar = null;
     }
 
+    @Override
+    public void setLowChargeState() {
+        List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
+        boolean isCoolDown = activeCoolDowns.stream().anyMatch(c -> connectedCar.equals(c.getTarget()));
+
+        if (connectedCar != null && !isCoolDown) {
+            log.info("Set low charge state {} for {}", minChargeLevel, connectedCar);
+            bleAdapter.setChargeState(minChargeLevel, connectedCar);
+        }
+    }
+
     // ─── Amp management ─────────────────────────────────────────────────
 
     @Override
@@ -260,8 +286,8 @@ public class TeslaWallCharger implements IChargePoint {
         int phases = defaultPhases;
 
         //if (data != null) {
-            //voltage = data.getChargerVoltage() > 0 ? data.getChargerVoltage() : defaultVoltage;
-            //phases = data.getChargerPhases() > 0 ? data.getChargerPhases() : defaultPhases;
+        //voltage = data.getChargerVoltage() > 0 ? data.getChargerVoltage() : defaultVoltage;
+        //phases = data.getChargerPhases() > 0 ? data.getChargerPhases() : defaultPhases;
         //}
 
         int wattsPerAmp = voltage * phases;
@@ -295,7 +321,7 @@ public class TeslaWallCharger implements IChargePoint {
             } else if (!response.isConnected()) {
                 prepareDisconnectedVehicleForNextCharge(vin);
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
-            } else if(response.isBatteryLow() && response.isActivelyCharging()) {
+            } else if (response.isBatteryLow() && response.isActivelyCharging()) {
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
             }
 

@@ -17,20 +17,20 @@ public class ChargeOptimizer {
 
     /**
      * Smart solar-tracking charge optimizer.
-     *
+     * <p>
      * Runs immediately after power is logged — no delay needed.
-     *
+     * <p>
      * Battery level strategy:
-     *   - Below 60%: let the car charge freely (don't interfere / don't stop)
-     *   - 60-80%: solar optimization — adjust amps to match surplus, stop if not enough
-     *   - At/above 80% (or charge complete): stop and set limit to 60% to prevent auto-restart
-     *
+     * - Below 60%: let the car charge freely (don't interfere / don't stop)
+     * - 60-80%: solar optimization — adjust amps to match surplus, stop if not enough
+     * - At/above 80% (or charge complete): stop and set limit to 60% to prevent auto-restart
+     * <p>
      * Auto-charge detection:
-     *   - If a car started charging on its own (manual plug-in or auto-start),
-     *     detect it, start a session, and clear NOT_CONNECTED cooldowns.
-     *
+     * - If a car started charging on its own (manual plug-in or auto-start),
+     * detect it, start a session, and clear NOT_CONNECTED cooldowns.
+     * <p>
      * Formula: availablePower = chargerCurrentDraw - gridExchange - buffer
-     *   (grid is positive when importing, negative when exporting)
+     * (grid is positive when importing, negative when exporting)
      */
     @Transactional
     public void optimize(PowerLog lastLog) {
@@ -57,7 +57,7 @@ public class ChargeOptimizer {
 
         boolean isCharging = currentChargerDraw > chargePoint.getMinPower();
         long minPower = chargePoint.getMinPower();
-        int batteryLevel = chargePoint.getBatteryLevel();
+        int batteryLevel = chargePoint.getBatteryLevel(false);
 
         log.info("Optimization check: grid={}W, charger={}W, available={}W, minPower={}W, isCharging={}, battery={}%",
                 gridExchange, currentChargerDraw, availablePower, minPower, isCharging, batteryLevel);
@@ -72,7 +72,16 @@ public class ChargeOptimizer {
             chargePoint.adjustChargePower(availablePower);
         } else if (isCharging && availablePower < minPower - 1300 && !(batteryLevel >= 0 && batteryLevel < 60)) { //Allow to keep charging if low battery
             log.info("Insufficient surplus ({}W < {}W) — stopping charge", availablePower, minPower);
-            chargePoint.stopCharge();
+            if (batteryLevel == -1) {
+                log.info("Unclear if battery level is low. Trying to evaluate battery level first");
+                batteryLevel = chargePoint.getBatteryLevel(true);
+                log.info("Recieved battery level {}%", batteryLevel);
+            }
+            if (batteryLevel >= 60) {
+                chargePoint.stopCharge();
+            }else{
+                chargePoint.setLowChargeState();
+            }
         } else {
             log.info("No action needed (not charging, surplus={}W)", availablePower);
         }
