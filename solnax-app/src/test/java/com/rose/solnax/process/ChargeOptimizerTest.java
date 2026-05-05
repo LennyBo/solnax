@@ -63,35 +63,33 @@ class ChargeOptimizerTest {
 
         optimizer.optimize(log(2500, 4000));
 
-        verify(chargePoint).stopCharge();
+        verify(chargePoint).handleInsufficientSurplus();
         verify(chargePoint, never()).startCharge();
     }
 
     @Test
-    void shouldVeryBatteryWhenInsufficientSurplus_andNoCache() {
-        // house = 2500 (importing 2500W), charger = 3500 → available = 3500 - 2500 - 500 = 500W (below min)
+    void shouldDelegateUnknownBatteryHandlingWhenInsufficientSurplus() {
+        // house = 2500 (importing 2500W), charger = 4000 → available = 1500W (below min)
 
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(-1);
-        when(chargePoint.getBatteryLevel(true)).thenReturn(20);
 
         optimizer.optimize(log(2500, 4000));
 
-        verify(chargePoint, never()).stopCharge();
+        verify(chargePoint).handleInsufficientSurplus();
         verify(chargePoint, never()).startCharge();
     }
 
     @Test
-    void shouldVeryBatteryAndStopChargeWhenInsufficientSurplus_andNoCache() {
-        // house = 2500 (importing 2500W), charger = 3500 → available = 3500 - 2500 - 500 = 500W (below min)
+    void shouldDelegateLowBatteryDecisionWhenBatteryIsKnownLow() {
+        // house = 2500 (importing 2500W), charger = 4000 → available = 1500W (below min)
 
         when(chargePoint.getMinPower()).thenReturn(3450L);
-        when(chargePoint.getBatteryLevel(false)).thenReturn(-1);
-        when(chargePoint.getBatteryLevel(true)).thenReturn(60);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(20);
 
         optimizer.optimize(log(2500, 4000));
 
-        verify(chargePoint).stopCharge();
+        verify(chargePoint).handleInsufficientSurplus();
         verify(chargePoint, never()).startCharge();
     }
 
@@ -160,6 +158,6 @@ class ChargeOptimizerTest {
         optimizer.optimize(log(500, 7000));
 
         verify(chargePoint).adjustChargePower(6500);
-        verify(chargePoint, never()).stopCharge();
+        verify(chargePoint, never()).handleInsufficientSurplus();
     }
 }

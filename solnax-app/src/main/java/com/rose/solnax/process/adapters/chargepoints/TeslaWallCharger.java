@@ -109,11 +109,7 @@ public class TeslaWallCharger implements IChargePoint {
 
         VehicleApiResponse data = getVehicleData(vinToStop);
 
-        log.info("Stopping charge of {}!", vinLabel(vinToStop));
-        bleAdapter.chargeStop(vinToStop);
-        // Set charge limit to 60% so the car won't auto-start when plugged in
-        bleAdapter.setChargeState(minChargeLevel, vinToStop);
-        chargeSessionManager.endSession(vinToStop, data);
+        stopCharge(vinToStop, data);
     }
 
     // ─── Chargeable / Connected checks ──────────────────────────────────
@@ -174,7 +170,7 @@ public class TeslaWallCharger implements IChargePoint {
     public void detectAutoCharging(int chargerDraw) {
         // If the charger meter shows significant draw but there's no active session,
         // a car must have started charging on its own (manual plug-in or auto-start).
-        // No BLE calls needed — we just use the Shelly power reading.
+        // Resolve the charging VIN once so session/cooldown state is correct.
         long minDetectionWatts = getMinPower();
         if (chargerDraw < minDetectionWatts) {
             return; // No significant draw — nothing to detect
@@ -185,14 +181,24 @@ public class TeslaWallCharger implements IChargePoint {
             return; // Already tracking a session
         }
 
-        // Something is charging without a session — figure out which car
-        // We don't know which car it is without BLE, so just start a session with a placeholder
-        // and let the next isChargeable/isCurrentlyCharging call (which already uses BLE) resolve it.
+        // Something is charging without a session — resolve which car once so
+        // we can start the correct session and capture low-battery state early.
         log.info("Charger drawing {}W with no active session — a car started charging on its own", chargerDraw);
 
         // Clear NOT_CONNECTED cooldowns for both cars since one of them is clearly connected
         chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(blackVin, CoolDownReason.NOT_CONNECTED);
         chargePointCoolDownManager.clearCoolDownsByReasonAndTarget(whiteVin, CoolDownReason.NOT_CONNECTED);
+
+        String vin = findChargingVin(false, false);
+        if (vin == null) {
+            log.info("Unable to resolve which car started auto charging");
+            return;
+        }
+
+        VehicleApiResponse data = getVehicleData(vin);
+        if (data != null && data.isBatteryLow()) {
+            ensureLowBatteryCooldown(vin);
+        }
     }
 
     @Override
@@ -217,6 +223,35 @@ public class TeslaWallCharger implements IChargePoint {
         VehicleApiResponse cached = blackVin.equals(connectedCar) ? cachedBlackData : cachedWhiteData;
         if (cached == null) return -1;
         return cached.getBatteryLevel();
+    }
+
+    @Override
+    public void handleInsufficientSurplus() {
+        String vin = resolveChargingVin();
+        if (vin == null) {
+            log.info("No actively charging car found while handling insufficient surplus");
+            return;
+        }
+
+        if (hasActiveLowBatteryCooldown(vin)) {
+            log.info("{} already has an active LOW_BATTERY cooldown — keeping the low charge state", vinLabel(vin));
+            applyLowChargeState(vin);
+            return;
+        }
+
+        VehicleApiResponse data = getVehicleData(vin);
+        if (data == null || data.getBatteryLevel() < 0) {
+            log.info("Battery level for {} is not cached — refreshing vehicle data", vinLabel(vin));
+            data = refreshVehicleData(vin);
+        }
+
+        if (data != null && data.isBatteryLow()) {
+            ensureLowBatteryCooldown(vin);
+            applyLowChargeState(vin);
+            return;
+        }
+
+        stopCharge(vin, data);
     }
 
     @Override
@@ -251,17 +286,6 @@ public class TeslaWallCharger implements IChargePoint {
         }
 
         connectedCar = null;
-    }
-
-    @Override
-    public void setLowChargeState() {
-        List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isCoolDown = activeCoolDowns.stream().anyMatch(c -> connectedCar.equals(c.getTarget()));
-
-        if (connectedCar != null && !isCoolDown) {
-            log.info("Set low charge state {} for {}", minChargeLevel, connectedCar);
-            bleAdapter.setChargeState(minChargeLevel, connectedCar);
-        }
     }
 
     // ─── Amp management ─────────────────────────────────────────────────
@@ -322,7 +346,7 @@ public class TeslaWallCharger implements IChargePoint {
                 prepareDisconnectedVehicleForNextCharge(vin);
                 chargePointCoolDownManager.coolDown(vin, CoolDownReason.NOT_CONNECTED);
             } else if (response.isBatteryLow() && response.isActivelyCharging()) {
-                chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
+                ensureLowBatteryCooldown(vin);
             }
 
             return response;
@@ -343,6 +367,59 @@ public class TeslaWallCharger implements IChargePoint {
             log.info("{} is not connected — set charge limit to {}% for the next plug-in", vinLabel(vin), maxChargeLevel);
         } catch (Exception e) {
             log.warn("Failed to set charge limit for disconnected {}: {}", vinLabel(vin), e.getMessage());
+        }
+    }
+
+    private void stopCharge(String vin, VehicleApiResponse data) {
+        log.info("Stopping charge of {}!", vinLabel(vin));
+        bleAdapter.chargeStop(vin);
+        bleAdapter.setChargeState(minChargeLevel, vin);
+        chargeSessionManager.endSession(vin, data);
+    }
+
+    private String resolveChargingVin() {
+        if (connectedCar != null) {
+            return connectedCar;
+        }
+
+        List<com.rose.solnax.model.entity.ChargeSession> activeSessions = chargeSessionManager.getActiveSessions();
+        if (!activeSessions.isEmpty()) {
+            connectedCar = activeSessions.get(0).getVin();
+            return connectedCar;
+        }
+
+        return findChargingVin(false, false);
+    }
+
+    private VehicleApiResponse refreshVehicleData(String vin) {
+        try {
+            VehicleApiResponse data = bleAdapter.vehicle_data(vin);
+            if (blackVin.equals(vin)) cachedBlackData = data;
+            if (whiteVin.equals(vin)) cachedWhiteData = data;
+            return data;
+        } catch (Exception e) {
+            log.warn("Couldn't refresh vehicle data for {}: {}", vinLabel(vin), e.getMessage());
+            return null;
+        }
+    }
+
+    private void ensureLowBatteryCooldown(String vin) {
+        if (!hasActiveLowBatteryCooldown(vin)) {
+            chargePointCoolDownManager.coolDown(vin, CoolDownReason.LOW_BATTERY);
+        }
+    }
+
+    private boolean hasActiveLowBatteryCooldown(String vin) {
+        return chargePointCoolDownManager.getActiveCoolDowns().stream()
+                .anyMatch(c -> vin.equals(c.getTarget()) && c.getReason() == CoolDownReason.LOW_BATTERY);
+    }
+
+    private void applyLowChargeState(String vin) {
+        try {
+            log.info("Set low charge state {} for {}", minChargeLevel, vinLabel(vin));
+            bleAdapter.setChargeState(minChargeLevel, vin);
+        } catch (Exception e) {
+            log.warn("Failed to set low charge state for {}: {}", vinLabel(vin), e.getMessage());
         }
     }
 

@@ -64,7 +64,8 @@ The Shelly-derived fields (`heater`, `charger`, `kitchen`) are nullable to repre
 - clears per-cycle Tesla cache,
 - detects auto-started / auto-stopped charging,
 - computes available power from the latest `PowerLog`,
-- starts, stops, or adjusts charging based on surplus and battery rules.
+- starts charging or adjusts charging based on surplus,
+- delegates charge-point specific low-battery / insufficient-surplus handling to `IChargePoint`.
 
 ### Tesla integration
 
@@ -75,6 +76,15 @@ The Shelly-derived fields (`heater`, `charger`, `kitchen`) are nullable to repre
 - charge session lifecycle through `ChargeSessionManager`.
 
 It caches vehicle data per optimizer cycle to avoid unnecessary BLE wake-ups.
+
+When a car starts charging on its own, `TeslaWallCharger.detectAutoCharging(...)` resolves which VIN is charging, starts a session, clears stale `NOT_CONNECTED` cooldowns, and creates a `LOW_BATTERY` cooldown immediately when the active car is below 60%.
+
+When surplus drops while a car is already charging, `TeslaWallCharger` owns the decision to either:
+
+- keep charging by setting the low charge limit when a `LOW_BATTERY` cooldown is active or confirmed,
+- or stop charging when the active vehicle is not low on battery.
+
+This keeps Tesla/BLE-specific wake-up and battery-resolution logic out of `ChargeOptimizer`.
 
 ## Frontend structure
 

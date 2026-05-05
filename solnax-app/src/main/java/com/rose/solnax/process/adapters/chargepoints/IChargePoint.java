@@ -43,12 +43,17 @@ public interface IChargePoint {
     int getBatteryLevel(boolean wakeUp);
 
     /**
+     * Handle the case where a car is charging but there is no longer enough
+     * surplus power available. Implementations may decide to stop charging,
+     * keep charging for low-battery protection, or update charge limits.
+     */
+    void handleInsufficientSurplus();
+
+    /**
      * Detect if charging stopped on its own (e.g. car reached max charge limit).
      * If there are active sessions but charger meter shows no draw, end them
      * and set charge limit back to min to prevent auto-restart.
      * @param chargerDraw current charger power draw in watts from the Shelly meter
      */
     void detectChargeStopped(int chargerDraw);
-
-    void setLowChargeState();
 }

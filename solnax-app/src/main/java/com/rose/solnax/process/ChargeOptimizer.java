@@ -70,18 +70,9 @@ public class ChargeOptimizer {
         } else if (isCharging && availablePower >= minPower - 1300) {
             log.info("Adjusting charge power to {}W", availablePower);
             chargePoint.adjustChargePower(availablePower);
-        } else if (isCharging && availablePower < minPower - 1300 && !(batteryLevel >= 0 && batteryLevel < 60)) { //Allow to keep charging if low battery
-            log.info("Insufficient surplus ({}W < {}W) — stopping charge", availablePower, minPower);
-            if (batteryLevel == -1) {
-                log.info("Unclear if battery level is low. Trying to evaluate battery level first");
-                batteryLevel = chargePoint.getBatteryLevel(true);
-                log.info("Recieved battery level {}%", batteryLevel);
-            }
-            if (batteryLevel >= 60) {
-                chargePoint.stopCharge();
-            }else{
-                chargePoint.setLowChargeState();
-            }
+        } else if (isCharging && availablePower < minPower - 1300) {
+            log.info("Insufficient surplus ({}W < {}W) — delegating charge-point handling", availablePower, minPower);
+            chargePoint.handleInsufficientSurplus();
         } else {
             log.info("No action needed (not charging, surplus={}W)", availablePower);
         }

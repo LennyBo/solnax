@@ -1,5 +1,6 @@
 package com.rose.solnax.process.adapters.chargepoints;
 
+import com.rose.solnax.model.entity.ChargeSession;
 import com.rose.solnax.model.entity.ChargePointCoolDown;
 import com.rose.solnax.model.entity.enums.CoolDownReason;
 import com.rose.solnax.process.ChargePointCoolDownManager;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -99,6 +101,45 @@ class TeslaWallChargerTest {
         verifyNoMoreInteractions(chargePointCoolDownManager, bleAdapter, chargeSessionManager);
     }
 
+    @Test
+    void shouldCreateLowBatteryCooldownWhenAutoChargingStartsBelowSixty() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of());
+        when(chargePointCoolDownManager.getActiveCoolDowns()).thenReturn(List.of());
+        when(bleAdapter.vehicle_data(BLACK_VIN)).thenReturn(vehicle("Charging", 55));
+
+        wallCharger.detectAutoCharging(4000);
+
+        verify(chargePointCoolDownManager).clearCoolDownsByReasonAndTarget(BLACK_VIN, CoolDownReason.NOT_CONNECTED);
+        verify(chargePointCoolDownManager).clearCoolDownsByReasonAndTarget(WHITE_VIN, CoolDownReason.NOT_CONNECTED);
+        verify(chargeSessionManager).startSession(eq(BLACK_VIN), any());
+        verify(chargePointCoolDownManager).coolDown(BLACK_VIN, CoolDownReason.LOW_BATTERY);
+    }
+
+    @Test
+    void shouldKeepChargingWhenInsufficientSurplusAndLowBatteryCooldownIsActive() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of(activeSession()));
+        when(chargePointCoolDownManager.getActiveCoolDowns()).thenReturn(List.of(cooldown(BLACK_VIN, CoolDownReason.LOW_BATTERY)));
+
+        wallCharger.handleInsufficientSurplus();
+
+        verify(bleAdapter).setChargeState(60, BLACK_VIN);
+        verify(bleAdapter, never()).chargeStop(anyString());
+        verify(chargeSessionManager, never()).endSession(anyString(), any());
+    }
+
+    @Test
+    void shouldRefreshBatteryStateAndStopWhenInsufficientSurplusAndBatteryIsNotLow() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of(activeSession()));
+        when(chargePointCoolDownManager.getActiveCoolDowns()).thenReturn(List.of());
+        when(bleAdapter.vehicle_data(BLACK_VIN)).thenReturn(vehicle("Charging", 65));
+
+        wallCharger.handleInsufficientSurplus();
+
+        verify(bleAdapter).chargeStop(BLACK_VIN);
+        verify(bleAdapter).setChargeState(60, BLACK_VIN);
+        verify(chargeSessionManager).endSession(eq(BLACK_VIN), any());
+    }
+
     private VehicleApiResponse vehicle(String chargingState, int batteryLevel) {
         return VehicleApiResponse.builder()
                 .response(VehicleApiResponse.Response.builder()
@@ -118,6 +159,13 @@ class TeslaWallChargerTest {
                 .target(vin)
                 .end(LocalDateTime.now().plusHours(1))
                 .reason(reason)
+                .build();
+    }
+
+    private ChargeSession activeSession() {
+        return ChargeSession.builder()
+                .vin(BLACK_VIN)
+                .startedAt(LocalDateTime.now())
                 .build();
     }
 }
