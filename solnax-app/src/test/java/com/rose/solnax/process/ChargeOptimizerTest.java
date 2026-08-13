@@ -2,6 +2,7 @@ package com.rose.solnax.process;
 
 
 import com.rose.solnax.model.entity.PowerLog;
+import com.rose.solnax.model.entity.enums.ChargeControlMode;
 import com.rose.solnax.process.adapters.chargepoints.IChargePoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,9 @@ class ChargeOptimizerTest {
     @Mock
     private IChargePoint chargePoint;
 
+    @Mock
+    private ChargePointCoolDownManager coolDownManager;
+
     @InjectMocks
     private ChargeOptimizer optimizer;
 
@@ -27,10 +31,17 @@ class ChargeOptimizerTest {
         return log;
     }
 
+    private void mode(ChargeControlMode mode) {
+        when(coolDownManager.getActiveChargeControlMode()).thenReturn(mode);
+    }
+
+    // ─── NORMAL mode ────────────────────────────────────────────────────
+
     @Test
     void shouldStartChargingWhenExcessPowerAndNotCharging() {
-        // house = -4000 (exporting 4000W), charger = 0 → available = 0 - (-4000) - 500 = 3500W
+        // house = -4000 (exporting 4000W), charger = 0 → available = 4000W
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
@@ -42,8 +53,9 @@ class ChargeOptimizerTest {
 
     @Test
     void shouldAdjustAmpsWhenAlreadyCharging() {
-        // house = -2000 (exporting 2000W), charger = 3000 → available = 3000 - (-2000) - 500 = 4500W
+        // house = -2000 (exporting 2000W), charger = 4000 → available = 6000W
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
@@ -56,21 +68,22 @@ class ChargeOptimizerTest {
 
     @Test
     void shouldStopChargingWhenInsufficientSurplus() {
-        // house = 2500 (importing 2500W), charger = 3500 → available = 3500 - 2500 - 500 = 500W (below min)
+        // house = 2500 (importing 2500W), charger = 4000 → available = 1500W (below min - tolerance)
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
         optimizer.optimize(log(2500, 4000));
 
         verify(chargePoint).handleInsufficientSurplus();
+        verify(chargePoint, never()).maintainMinimumCharge();
         verify(chargePoint, never()).startCharge();
     }
 
     @Test
     void shouldDelegateUnknownBatteryHandlingWhenInsufficientSurplus() {
-        // house = 2500 (importing 2500W), charger = 4000 → available = 1500W (below min)
-
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(-1);
 
@@ -82,8 +95,7 @@ class ChargeOptimizerTest {
 
     @Test
     void shouldDelegateLowBatteryDecisionWhenBatteryIsKnownLow() {
-        // house = 2500 (importing 2500W), charger = 4000 → available = 1500W (below min)
-
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(20);
 
@@ -95,8 +107,9 @@ class ChargeOptimizerTest {
 
     @Test
     void shouldNotStartWhenNotEnoughSurplus() {
-        // house = -1000 (exporting 1000W), charger = 0 → available = 0 - (-1000) - 500 = 500W (below min)
+        // house = -1000 (exporting 1000W), charger = 0 → available = 1000W (below min)
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
@@ -111,6 +124,7 @@ class ChargeOptimizerTest {
     void shouldNotStopWhenNotCharging() {
         // house = 2500 (importing), charger = 0, not charging → nothing to stop
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
@@ -118,40 +132,27 @@ class ChargeOptimizerTest {
 
         verify(chargePoint, never()).startCharge();
         verify(chargePoint, never()).stopCharge();
+        verify(chargePoint, never()).handleInsufficientSurplus();
         verify(chargePoint, never()).adjustChargePower(anyInt());
     }
 
     @Test
-    void shouldDoNothingInNeutralPowerRange() {
-        // house = -1000 (exporting 1000W), charger = 0 → available = 500W < 3450W
-
-        when(chargePoint.getMinPower()).thenReturn(3450L);
-        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
-
-        optimizer.optimize(log(-1000, 0));
-
-        verify(chargePoint, never()).startCharge();
-        verify(chargePoint, never()).stopCharge();
-    }
-
-    @Test
     void shouldStartAtExactMinPowerBoundary() {
-        // house = -3950 (exporting 3950W), charger = 0 → available = 3950 - 500 = 3450W = exactly minPower
-
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
-        optimizer.optimize(log(-3950, 0));
+        optimizer.optimize(log(-3450, 0));
 
         verify(chargePoint).startCharge();
-        verify(chargePoint).adjustChargePower(3950);
+        verify(chargePoint).adjustChargePower(3450);
     }
 
     @Test
     void shouldReduceAmpsWhenSurplusDrops() {
-        // Charging at 7000W, but surplus dropped: house = 500 (importing 500W)
-        // available = 7000 - 500 - 500 = 6000W → adjust down
+        // Charging at 7000W, but surplus dropped: house = 500 (importing 500W) → available = 6500W
 
+        mode(ChargeControlMode.NORMAL);
         when(chargePoint.getMinPower()).thenReturn(3450L);
         when(chargePoint.getBatteryLevel(false)).thenReturn(60);
 
@@ -159,5 +160,139 @@ class ChargeOptimizerTest {
 
         verify(chargePoint).adjustChargePower(6500);
         verify(chargePoint, never()).handleInsufficientSurplus();
+    }
+
+    @Test
+    void shouldTreatChargingAtMinimumAmpsAsCharging() {
+        // Charging at exactly minPower with no surplus left → available = 0W
+        // The draw is not above minPower, but it is clearly a running charge.
+
+        mode(ChargeControlMode.NORMAL);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(3450, 3450));
+
+        verify(chargePoint).handleInsufficientSurplus();
+        verify(chargePoint, never()).startCharge();
+    }
+
+    // ─── MANUAL mode ────────────────────────────────────────────────────
+
+    @Test
+    void shouldDoAbsolutelyNothingWhileManualCoolDownIsActive() {
+        mode(ChargeControlMode.MANUAL);
+
+        optimizer.optimize(log(2500, 4000));
+
+        verifyNoInteractions(chargePoint);
+    }
+
+    @Test
+    void shouldNotStartChargingWhileManualCoolDownIsActive() {
+        mode(ChargeControlMode.MANUAL);
+
+        optimizer.optimize(log(-8000, 0));
+
+        verifyNoInteractions(chargePoint);
+    }
+
+    @Test
+    void shouldResetCachedVehicleStateWhenWakingUpFromManualCoolDown() {
+        when(coolDownManager.getActiveChargeControlMode())
+                .thenReturn(ChargeControlMode.MANUAL, ChargeControlMode.NORMAL);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(2500, 4000));
+        optimizer.optimize(log(-4000, 0));
+
+        verify(chargePoint).resetCachedState();
+        verify(chargePoint, never()).clearCycleCache();
+        verify(chargePoint).startCharge();
+    }
+
+    @Test
+    void shouldOnlyClearTheCycleCacheWhileStayingAwake() {
+        mode(ChargeControlMode.NORMAL);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(-4000, 0));
+
+        verify(chargePoint).clearCycleCache();
+        verify(chargePoint, never()).resetCachedState();
+    }
+
+    // ─── ECO_PLUS mode ──────────────────────────────────────────────────
+
+    @Test
+    void shouldKeepMinimumChargeInsteadOfStoppingInEcoPlus() {
+        mode(ChargeControlMode.ECO_PLUS);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(2500, 4000));
+
+        verify(chargePoint).maintainMinimumCharge();
+        verify(chargePoint, never()).handleInsufficientSurplus();
+        verify(chargePoint, never()).stopCharge();
+    }
+
+    @Test
+    void shouldStillFollowSolarProductionInEcoPlus() {
+        mode(ChargeControlMode.ECO_PLUS);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(-2000, 4000));
+
+        verify(chargePoint).adjustChargePower(6000);
+        verify(chargePoint, never()).maintainMinimumCharge();
+    }
+
+    @Test
+    void shouldStartChargingOnSurplusInEcoPlus() {
+        mode(ChargeControlMode.ECO_PLUS);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(-4000, 0));
+
+        verify(chargePoint).startCharge();
+        verify(chargePoint).adjustChargePower(4000);
+    }
+
+    @Test
+    void shouldNotForceStartChargingWithoutSurplusInEcoPlus() {
+        // Eco+ never stops a charge, but it also never starts one without surplus.
+
+        mode(ChargeControlMode.ECO_PLUS);
+        when(chargePoint.getMinPower()).thenReturn(3450L);
+        when(chargePoint.getBatteryLevel(false)).thenReturn(60);
+
+        optimizer.optimize(log(2500, 0));
+
+        verify(chargePoint, never()).startCharge();
+        verify(chargePoint, never()).maintainMinimumCharge();
+        verify(chargePoint, never()).adjustChargePower(anyInt());
+    }
+
+    // ─── Missing readings ───────────────────────────────────────────────
+
+    @Test
+    void shouldSkipOptimizationWhenChargerReadingIsMissing() {
+        mode(ChargeControlMode.NORMAL);
+
+        PowerLog log = new PowerLog();
+        log.setHouse(-4000);
+        log.setCharger(null);
+
+        optimizer.optimize(log);
+
+        verify(chargePoint, never()).startCharge();
+        verify(chargePoint, never()).detectAutoCharging(anyInt());
+        verify(chargePoint, never()).handleInsufficientSurplus();
+        verify(chargePoint, never()).maintainMinimumCharge();
     }
 }

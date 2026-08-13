@@ -93,8 +93,8 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public void stopCharge() {
         List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
-        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        boolean isBlackCoolDown = isBlocked(activeCoolDowns, blackVin, false);
+        boolean isWhiteCoolDown = isBlocked(activeCoolDowns, whiteVin, false);
 
         if (isBlackCoolDown && isWhiteCoolDown) {
             log.info("Both cars in cool down period");
@@ -117,8 +117,8 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public boolean isChargeable() {
         List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isBlackCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> blackVin.equals(c.getTarget()));
-        boolean isWhiteCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> whiteVin.equals(c.getTarget()));
+        boolean isBlackCoolDown = isBlocked(activeCoolDowns, blackVin, true);
+        boolean isWhiteCoolDown = isBlocked(activeCoolDowns, whiteVin, true);
 
         if (isBlackCoolDown && isWhiteCoolDown) {
             log.info("Both cars in cool down period");
@@ -156,8 +156,8 @@ public class TeslaWallCharger implements IChargePoint {
     @Override
     public boolean isCurrentlyCharging() {
         List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-        boolean isBlackCoolDown = activeCoolDowns.stream().anyMatch(c -> blackVin.equals(c.getTarget()));
-        boolean isWhiteCoolDown = activeCoolDowns.stream().anyMatch(c -> whiteVin.equals(c.getTarget()));
+        boolean isBlackCoolDown = isBlocked(activeCoolDowns, blackVin, false);
+        boolean isWhiteCoolDown = isBlocked(activeCoolDowns, whiteVin, false);
         return findChargingVin(isBlackCoolDown, isWhiteCoolDown) != null;
     }
 
@@ -171,8 +171,7 @@ public class TeslaWallCharger implements IChargePoint {
         // If the charger meter shows significant draw but there's no active session,
         // a car must have started charging on its own (manual plug-in or auto-start).
         // Resolve the charging VIN once so session/cooldown state is correct.
-        long minDetectionWatts = getMinPower();
-        if (chargerDraw < minDetectionWatts) {
+        if (chargerDraw <= CHARGING_DETECTION_WATTS) {
             return; // No significant draw — nothing to detect
         }
 
@@ -265,7 +264,7 @@ public class TeslaWallCharger implements IChargePoint {
         }
 
         // Allow some tolerance — small draw could be idle/standby
-        if (chargerDraw > 500) {
+        if (chargerDraw > CHARGING_DETECTION_WATTS) {
             return; // Still drawing power — charge is ongoing
         }
 
@@ -295,8 +294,8 @@ public class TeslaWallCharger implements IChargePoint {
         String vin = connectedCar;
         if (vin == null) {
             List<ChargePointCoolDown> activeCoolDowns = chargePointCoolDownManager.getActiveCoolDowns();
-            boolean isBlackCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> blackVin.equals(c.getTarget()));
-            boolean isWhiteCoolDown = activeCoolDowns.stream().filter(c -> c.getReason() != CoolDownReason.LOW_BATTERY).anyMatch(c -> whiteVin.equals(c.getTarget()));
+            boolean isBlackCoolDown = isBlocked(activeCoolDowns, blackVin, true);
+            boolean isWhiteCoolDown = isBlocked(activeCoolDowns, whiteVin, true);
             vin = findChargingVin(isBlackCoolDown, isWhiteCoolDown);
         }
 
@@ -305,32 +304,53 @@ public class TeslaWallCharger implements IChargePoint {
             return;
         }
 
-        //VehicleApiResponse data = getVehicleData(vin);
-        int voltage = defaultVoltage;
-        int phases = defaultPhases;
-
-        //if (data != null) {
-        //voltage = data.getChargerVoltage() > 0 ? data.getChargerVoltage() : defaultVoltage;
-        //phases = data.getChargerPhases() > 0 ? data.getChargerPhases() : defaultPhases;
-        //}
-
-        int wattsPerAmp = voltage * phases;
+        int wattsPerAmp = defaultVoltage * defaultPhases;
         int targetAmps = availableWatts / wattsPerAmp;
 
         targetAmps = Math.max(minAmps, Math.min(maxAmps, targetAmps));
 
         log.info("Adjusting charge amps to {} (available: {}W, {}V x {} phases = {}W/A)",
-                targetAmps, availableWatts, voltage, phases, wattsPerAmp);
+                targetAmps, availableWatts, defaultVoltage, defaultPhases, wattsPerAmp);
 
-        try {
-            bleAdapter.setChargingAmps(targetAmps, vin);
-            chargeSessionManager.updateSessionAmps(vin, targetAmps);
-        } catch (Exception e) {
-            log.warn("Failed to set charging amps for {}: {}", vin, e.getMessage());
+        applyAmps(vin, targetAmps);
+    }
+
+    @Override
+    public void maintainMinimumCharge() {
+        String vin = resolveChargingVin();
+        if (vin == null) {
+            log.info("Eco+: no actively charging car found — nothing to keep alive");
+            return;
         }
+
+        log.info("Eco+: keeping {} charging at the minimum of {}A instead of stopping", vinLabel(vin), minAmps);
+        applyAmps(vin, minAmps);
     }
 
     // ─── Private helpers ────────────────────────────────────────────────
+
+    private void applyAmps(String vin, int amps) {
+        try {
+            bleAdapter.setChargingAmps(amps, vin);
+            chargeSessionManager.updateSessionAmps(vin, amps);
+        } catch (Exception e) {
+            log.warn("Failed to set charging amps for {}: {}", vinLabel(vin), e.getMessage());
+        }
+    }
+
+    /**
+     * @param ignoreLowBattery when true a LOW_BATTERY cool down does not block the car,
+     *                         it only protects it from being stopped.
+     * @return true when an active vehicle scoped cool down blocks the given car.
+     * Mode cool downs (MANUAL / ECO_PLUS) are global and never block a single car —
+     * they are evaluated once by the optimizer.
+     */
+    private boolean isBlocked(List<ChargePointCoolDown> activeCoolDowns, String vin, boolean ignoreLowBattery) {
+        return activeCoolDowns.stream()
+                .filter(c -> !c.getReason().isMode())
+                .filter(c -> !ignoreLowBattery || c.getReason() != CoolDownReason.LOW_BATTERY)
+                .anyMatch(c -> vin.equals(c.getTarget()));
+    }
 
     private VehicleApiResponse fetchAndEvaluate(String vin) {
         try {
@@ -473,9 +493,27 @@ public class TeslaWallCharger implements IChargePoint {
     /**
      * Clear the per-cycle cache. Called at the start of each optimization cycle.
      */
+    @Override
     public void clearCycleCache() {
         cachedBlackData = null;
         cachedWhiteData = null;
+    }
+
+    /**
+     * Forget everything, including which car we believe is plugged in.
+     * Used when waking up from a manual cool down where cars may have been swapped:
+     * sessions started before the sleep can no longer be trusted, so they are aborted and
+     * the next detection cycle starts a fresh session for whichever car is really charging.
+     */
+    @Override
+    public void resetCachedState() {
+        clearCycleCache();
+        connectedCar = null;
+
+        for (com.rose.solnax.model.entity.ChargeSession session : chargeSessionManager.getActiveSessions()) {
+            log.info("Aborting stale session of {} — it was started before the manual sleep", vinLabel(session.getVin()));
+            chargeSessionManager.abortSession(session.getVin());
+        }
     }
 
     private String vinLabel(String vin) {

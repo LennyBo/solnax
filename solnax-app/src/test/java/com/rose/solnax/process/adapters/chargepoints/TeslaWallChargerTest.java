@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -138,6 +139,68 @@ class TeslaWallChargerTest {
         verify(bleAdapter).chargeStop(BLACK_VIN);
         verify(bleAdapter).setChargeState(60, BLACK_VIN);
         verify(chargeSessionManager).endSession(eq(BLACK_VIN), any());
+    }
+
+    @Test
+    void shouldKeepChargingAtMinimumAmpsInEcoPlusInsteadOfStopping() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of(activeSession()));
+
+        wallCharger.maintainMinimumCharge();
+
+        verify(bleAdapter).setChargingAmps(5, BLACK_VIN);
+        verify(chargeSessionManager).updateSessionAmps(BLACK_VIN, 5);
+        verify(bleAdapter, never()).chargeStop(anyString());
+        verify(bleAdapter, never()).setChargeState(anyInt(), anyString());
+        verify(chargeSessionManager, never()).endSession(anyString(), any());
+    }
+
+    @Test
+    void shouldDoNothingInEcoPlusWhenNoCarIsCharging() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of());
+        when(bleAdapter.vehicle_data(BLACK_VIN)).thenReturn(vehicle("Disconnected", 65));
+        when(bleAdapter.vehicle_data(WHITE_VIN)).thenReturn(vehicle("Disconnected", 65));
+
+        wallCharger.maintainMinimumCharge();
+
+        verify(bleAdapter, never()).setChargingAmps(anyInt(), anyString());
+        verify(bleAdapter, never()).chargeStop(anyString());
+    }
+
+    @Test
+    void shouldAbortStaleSessionsWhenWakingUpFromAManualSleep() {
+        when(chargeSessionManager.getActiveSessions()).thenReturn(List.of(activeSession()));
+
+        wallCharger.resetCachedState();
+
+        verify(chargeSessionManager).abortSession(BLACK_VIN);
+        verifyNoMoreInteractions(bleAdapter);
+    }
+
+    @Test
+    void shouldNotTreatModeCoolDownsAsAPerVehicleBlock() {
+        // Legacy rows: MANUAL cool downs used to be stored per VIN. They must never
+        // block a single car — the optimizer evaluates modes globally instead.
+        when(chargePointCoolDownManager.getActiveCoolDowns()).thenReturn(List.of(
+                cooldown(BLACK_VIN, CoolDownReason.MANUAL),
+                cooldown(WHITE_VIN, CoolDownReason.MANUAL)
+        ));
+        when(bleAdapter.vehicle_data(BLACK_VIN)).thenReturn(vehicle("Connected", 65));
+
+        wallCharger.startCharge();
+
+        verify(bleAdapter).chargeStart(BLACK_VIN);
+    }
+
+    @Test
+    void shouldNotBlockChargingWhileEcoPlusModeIsActive() {
+        when(chargePointCoolDownManager.getActiveCoolDowns()).thenReturn(List.of(
+                cooldown(ChargePointCoolDownManager.GLOBAL_TARGET, CoolDownReason.ECO_PLUS)
+        ));
+        when(bleAdapter.vehicle_data(BLACK_VIN)).thenReturn(vehicle("Connected", 65));
+
+        wallCharger.startCharge();
+
+        verify(bleAdapter).chargeStart(BLACK_VIN);
     }
 
     private VehicleApiResponse vehicle(String chargingState, int batteryLevel) {

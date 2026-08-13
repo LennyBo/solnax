@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -15,9 +16,14 @@ public interface ChargePointCooldownRepository extends JpaRepository<ChargePoint
     boolean existsByEndAfterAndReason(LocalDateTime localDateTime, CoolDownReason reason);
     boolean existsByTargetAndEndAfter(String target, LocalDateTime localDateTime);
 
+    List<ChargePointCoolDown> findAllByReasonInAndEndAfter(Collection<CoolDownReason> reasons, LocalDateTime localDateTime);
+
     @Modifying
     int deleteAllByEndAfter(LocalDateTime localDateTime);
 
     @Modifying
     int deleteAllByTargetAndReasonAndEndAfter(String target, CoolDownReason reason, LocalDateTime localDateTime);
+
+    @Modifying
+    int deleteAllByReasonInAndEndAfter(Collection<CoolDownReason> reasons, LocalDateTime localDateTime);
 }

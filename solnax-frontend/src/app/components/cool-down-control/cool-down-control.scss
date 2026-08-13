@@ -13,6 +13,11 @@
   border: 1px solid #ffeeba;
 }
 
+.cooldown-card.active.eco {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+}
+
 .status {
   display: flex;
   align-items: center;
@@ -30,13 +35,27 @@
   background: #ff9800;
 }
 
+.cooldown-card.active.eco .indicator {
+  background: #4caf50;
+}
+
 .label {
   font-weight: 600;
+  display: flex;
+  flex-direction: column;
+
+  .description,
+  .until {
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: #666;
+  }
 }
 
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn {
@@ -65,6 +84,26 @@
 
 .btn.danger:disabled {
   background: #ef9a9a;
+  cursor: not-allowed;
+}
+
+.btn.eco {
+  background: #4caf50;
+  color: white;
+}
+
+.btn.eco:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.btn.neutral {
+  background: #607d8b;
+  color: white;
+}
+
+.btn.neutral:disabled {
+  background: #b0bec5;
   cursor: not-allowed;
 }
 

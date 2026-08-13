@@ -1,17 +1,33 @@
-<div class="cooldown-card" [class.active]="active()">
+<div class="cooldown-card" [class.active]="active()" [class.eco]="mode() === 'ECO_PLUS'">
   <div class="status">
     <span class="indicator"></span>
     <span class="label">
-      {{ active() ? 'Manual Cooldown Active' : 'No Manual Cooldown' }}
+      {{ formatMode(mode()) }}
+      <small class="description">{{ modeDescription() }}</small>
+      <small class="until" *ngIf="active() && endsAt()">until {{ endsAt() | date:'short' }}</small>
     </span>
   </div>
 
   <div class="actions">
     <button
       class="btn primary"
-      (click)="createCoolDown()"
-      [disabled]="active() || loading()">
-      Activate
+      (click)="activate('MANUAL')"
+      [disabled]="mode() === 'MANUAL' || loading()">
+      Manual
+    </button>
+
+    <button
+      class="btn eco"
+      (click)="activate('ECO_PLUS')"
+      [disabled]="mode() === 'ECO_PLUS' || loading()">
+      Eco+
+    </button>
+
+    <button
+      class="btn neutral"
+      (click)="backToNormal()"
+      [disabled]="!active() || loading()">
+      Normal
     </button>
 
     <button
