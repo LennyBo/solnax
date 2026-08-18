@@ -36,7 +36,7 @@ public class CoolDownController {
     }
 
     @PostMapping("/api/cool-down/mode/{mode}")
-    public ResponseEntity<ChargeControlModeDTO> activateMode(@PathVariable ChargeControlMode mode) {
+    public ResponseEntity<ChargeControlModeDTO> activateMode(@PathVariable("mode") ChargeControlMode mode) {
         try {
             chargePointCoolDownManager.activateMode(mode);
             return ResponseEntity.ok(chargePointCoolDownManager.getActiveModeCoolDown()
